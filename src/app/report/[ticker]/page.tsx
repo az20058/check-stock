@@ -1,75 +1,64 @@
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import { useStockReport } from "@/hooks/queries";
+import type { TimeRange } from "@/types/stock";
 import StatusBar from "@/components/StatusBar";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import PriceChart from "@/components/PriceChart";
 import Pct from "@/components/Pct";
 
-const chartData = [440, 438, 442, 436, 431, 428, 432, 425, 420, 418, 422, 415, 410, 412, 408, 405, 410, 414, 412, 408, 411, 412, 410, 413];
-
-const segments = ["1D", "1W", "1M", "3M", "1Y", "ALL"];
-
-const causes = [
-  {
-    rank: 1,
-    title: "10년물 금리 4.55%로 재상승",
-    desc: "고밸류 성장주 할인율 상승 → PER 80배 반도체주 직격. 같은 날 SOXX(반도체 ETF)도 −2.3% 동반 하락.",
-    tags: ["#매크로", "#섹터"],
-    accent: true,
-  },
-  {
-    rank: 2,
-    title: 'TSMC "2026 AI 칩 수요 모멘텀 둔화" 가이던스',
-    desc: "대만 어닝콜에서 언급. 엔비디아 최대 파운드리 공급사라 동반 하락 압력. AMD(−3.1%), AVGO(−2.8%)도 유사 패턴.",
-    tags: ["#공급망", "#어닝"],
-    accent: false,
-  },
-  {
-    rank: 3,
-    title: "대형 기관투자자 차익실현 정황",
-    desc: "평균 거래량 대비 1.9배 · 장 마감 30분간 물량 집중. 13F 공시 앞두고 포지션 조정으로 추정.",
-    tags: ["#수급"],
-    accent: false,
-  },
-];
-
-const sectorComparisons = [
-  { label: "NVDA", pct: -4.82, widthPct: 100, primary: true },
-  { label: "반도체 섹터 (SOXX)", pct: -2.31, widthPct: 48, primary: false },
-  { label: "NASDAQ 100", pct: -1.18, widthPct: 24, primary: false },
-  { label: "S&P 500", pct: -0.42, widthPct: 9, primary: false },
-];
-
-const news = [
-  {
-    source: "REUTERS",
-    title: "美 10년물 금리 4.55% 돌파, 연준 인하 기대 후퇴",
-    time: "3시간 전",
-  },
-  {
-    source: "BLOOMBERG",
-    title: "TSMC, 2026년 AI 칩 수요 모멘텀 둔화 전망",
-    time: "5시간 전",
-  },
-  {
-    source: "CNBC",
-    title: "엔비디아, 대형 기관 매물 출회… 차익실현 관측",
-    time: "7시간 전",
-  },
-  {
-    source: "한경",
-    title: '서학개미 "반도체 조정은 기회" vs 전문가 "조심"',
-    time: "9시간 전",
-  },
-];
-
-const macros = [
-  { label: "10Y Yield", value: "4.55%", delta: "+5bp", up: true },
-  { label: "VIX", value: "18.24", delta: "+1.05", up: true },
-  { label: "XLK (기술주)", value: "−1.82%", delta: "상대적 약세", up: false },
-  { label: "거래량", value: "1.9×", delta: "평균 대비", up: true },
-];
+const segments: TimeRange[] = ["1D", "1W", "1M", "3M", "1Y", "ALL"];
 
 export default function ReportPage() {
+  const params = useParams();
+  const router = useRouter();
+  const ticker = (params.ticker as string).toUpperCase();
+  const { data, isLoading, isError } = useStockReport(ticker);
+  const [range, setRange] = useState<TimeRange>("1D");
+
+  if (isLoading) {
+    return (
+      <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
+        <StatusBar time="--:--" />
+        <div className="overflow-y-auto h-full pt-[54px] pb-[96px] px-4 space-y-4">
+          <div className="h-10 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
+          <div className="h-24 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
+          <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
+          <div className="h-32 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
+          <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
+        </div>
+        <TabBar active="watch" />
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div
+        className="relative h-dvh overflow-hidden flex items-center justify-center"
+        style={{ background: "var(--bg-1)" }}
+      >
+        <div className="text-center">
+          <p style={{ color: "var(--text-1)" }}>데이터를 불러올 수 없습니다</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold"
+            style={{ background: "var(--accent)", color: "var(--text-0)" }}
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const { stock, aiSummary, causes, sectorComparisons, news, macros, chartData } = data;
+  const up = stock.changePct >= 0;
+  const changeSign = up ? "+" : "";
+
   return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
       <StatusBar time="9:02" />
@@ -84,6 +73,7 @@ export default function ReportPage() {
             className="w-9 h-9 rounded-xl flex items-center justify-center border"
             style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
             aria-label="뒤로가기"
+            onClick={() => router.back()}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M15 19l-7-7 7-7" stroke="var(--text-1)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -96,13 +86,13 @@ export default function ReportPage() {
               className="text-[11px] font-semibold"
               style={{ color: "var(--text-2)" }}
             >
-              NASDAQ
+              {stock.exchange}
             </span>
             <span
               className="font-mono text-sm font-bold"
               style={{ color: "var(--text-0)" }}
             >
-              NVDA
+              {stock.ticker}
             </span>
           </div>
 
@@ -121,10 +111,10 @@ export default function ReportPage() {
         {/* Hero */}
         <div className="px-5 pt-4 pb-2">
           <div className="flex items-center gap-3 mb-3">
-            <Avatar ticker="NVDA" size="lg" />
+            <Avatar ticker={stock.ticker} size="lg" />
             <div>
-              <div className="text-lg font-bold" style={{ color: "var(--text-0)" }}>엔비디아</div>
-              <div className="text-xs" style={{ color: "var(--text-2)" }}>NVIDIA Corp. · 반도체</div>
+              <div className="text-lg font-bold" style={{ color: "var(--text-0)" }}>{stock.nameKo}</div>
+              <div className="text-xs" style={{ color: "var(--text-2)" }}>{stock.name} · {stock.sector}</div>
             </div>
           </div>
 
@@ -132,21 +122,21 @@ export default function ReportPage() {
             className="font-mono text-[34px] font-bold tracking-tight"
             style={{ color: "var(--text-0)" }}
           >
-            $412.73
+            ${stock.price.toFixed(2)}
           </div>
 
           <div className="flex items-center gap-2 mt-1">
             <span
               className="font-mono text-[15px] font-semibold"
-              style={{ color: "var(--down)" }}
+              style={{ color: up ? "var(--up)" : "var(--down)" }}
             >
-              −$20.89 (−4.82%)
+              {changeSign}${stock.change.toFixed(2)} ({changeSign}{stock.changePct.toFixed(2)}%)
             </span>
             <span
               className="inline-flex items-center h-[22px] px-2 rounded-md text-[11px] font-semibold"
               style={{
-                background: "var(--down-soft)",
-                color: "var(--down)",
+                background: up ? "var(--up-soft)" : "var(--down-soft)",
+                color: up ? "var(--up)" : "var(--down)",
               }}
             >
               장마감
@@ -182,7 +172,7 @@ export default function ReportPage() {
 
             {/* Chart */}
             <div className="flex justify-center">
-              <PriceChart data={chartData} up={false} width={311} height={128} />
+              <PriceChart data={chartData[range]} up={up} width={311} height={128} />
             </div>
 
             {/* Segmented control */}
@@ -196,10 +186,11 @@ export default function ReportPage() {
                     key={seg}
                     className="px-3 py-1.5 text-xs font-semibold rounded-[9px] cursor-pointer"
                     style={
-                      seg === "1D"
+                      range === seg
                         ? { background: "var(--bg-4)", color: "var(--text-0)" }
                         : { color: "var(--text-2)" }
                     }
+                    onClick={() => setRange(seg)}
                   >
                     {seg}
                   </span>
@@ -235,7 +226,7 @@ export default function ReportPage() {
               className="text-base font-bold leading-relaxed"
               style={{ color: "var(--text-0)" }}
             >
-              금리 상승 + AI 수요 둔화 우려 + 경쟁사 호실적 3중 악재로 평균 거래량 1.9배 수반한 매물 출회.
+              {aiSummary}
             </p>
           </div>
         </div>
@@ -251,69 +242,72 @@ export default function ReportPage() {
           </div>
 
           <div className="px-4 flex flex-col gap-3">
-            {causes.map((c) => (
-              <div
-                key={c.rank}
-                className="rounded-[14px] border"
-                style={{
-                  padding: "14px",
-                  background: "var(--bg-2)",
-                  borderColor: "var(--line)",
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Rank badge */}
-                  <span
-                    className="w-[22px] h-[22px] rounded-[7px] border flex items-center justify-center font-mono text-[11px] font-bold shrink-0"
-                    style={
-                      c.accent
-                        ? {
-                            background: "var(--accent-soft)",
-                            color: "var(--accent)",
-                            borderColor: "var(--accent-ring)",
-                          }
-                        : {
-                            background: "var(--bg-3)",
-                            color: "var(--text-2)",
-                            borderColor: "var(--line)",
-                          }
-                    }
-                  >
-                    {c.rank}
-                  </span>
+            {causes.map((c) => {
+              const isAccent = c.rank === 1;
+              return (
+                <div
+                  key={c.rank}
+                  className="rounded-[14px] border"
+                  style={{
+                    padding: "14px",
+                    background: "var(--bg-2)",
+                    borderColor: "var(--line)",
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Rank badge */}
+                    <span
+                      className="w-[22px] h-[22px] rounded-[7px] border flex items-center justify-center font-mono text-[11px] font-bold shrink-0"
+                      style={
+                        isAccent
+                          ? {
+                              background: "var(--accent-soft)",
+                              color: "var(--accent)",
+                              borderColor: "var(--accent-ring)",
+                            }
+                          : {
+                              background: "var(--bg-3)",
+                              color: "var(--text-2)",
+                              borderColor: "var(--line)",
+                            }
+                      }
+                    >
+                      {c.rank}
+                    </span>
 
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className="text-[13px] font-bold leading-snug"
-                      style={{ color: "var(--text-0)" }}
-                    >
-                      {c.title}
-                    </div>
-                    <p
-                      className="text-xs leading-relaxed mt-1.5"
-                      style={{ color: "var(--text-1)" }}
-                    >
-                      {c.desc}
-                    </p>
-                    <div className="flex gap-1.5 flex-wrap mt-2">
-                      {c.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-[11px] rounded-full border px-2 h-[20px] flex items-center"
-                          style={{
-                            background: "var(--bg-3)",
-                            color: "var(--text-2)",
-                            borderColor: "var(--line)",
-                          }}
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="text-[13px] font-bold leading-snug"
+                        style={{ color: "var(--text-0)" }}
+                      >
+                        {c.title}
+                      </div>
+                      <p
+                        className="text-xs leading-relaxed mt-1.5"
+                        style={{ color: "var(--text-1)" }}
+                      >
+                        {c.desc}
+                      </p>
+                      <div className="flex gap-1.5 flex-wrap mt-2">
+                        {c.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="text-[11px] rounded-full border px-2 h-[20px] flex items-center"
+                            style={{
+                              background: "var(--bg-3)",
+                              color: "var(--text-2)",
+                              borderColor: "var(--line)",
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -343,7 +337,7 @@ export default function ReportPage() {
                     >
                       {item.label}
                     </span>
-                    <Pct v={item.pct} bold={item.primary} />
+                    <Pct v={item.changePct} bold={item.primary} />
                   </div>
                   <div
                     className="h-1.5 rounded-full w-full"
@@ -373,7 +367,7 @@ export default function ReportPage() {
               className="text-xs font-semibold"
               style={{ color: "var(--text-2)" }}
             >
-              4건
+              {news.length}건
             </span>
           </div>
           <div
@@ -386,7 +380,7 @@ export default function ReportPage() {
           >
             {news.map((item, i) => (
               <div
-                key={i}
+                key={`${item.source}-${item.time}`}
                 className="flex gap-2.5 py-3"
                 style={
                   i > 0

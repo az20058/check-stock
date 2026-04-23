@@ -1,87 +1,39 @@
+"use client";
+
+import Link from "next/link";
 import StatusBar from "@/components/StatusBar";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import Sparkline from "@/components/Sparkline";
-
-// Fixed sparkline data (SSR-safe, no Math.random)
-const sparkData = {
-  NVDA: [440, 438, 442, 436, 431, 428, 432, 425, 420, 418, 422, 415, 410, 412],
-  TSLA: [180, 178, 176, 174, 177, 175, 172, 170, 169, 171, 168, 166, 167, 168],
-  AAPL: [184, 185, 184, 186, 185, 187, 186, 185, 186, 187, 186, 186, 187, 187],
-  MSFT: [408, 406, 405, 404, 406, 405, 403, 404, 403, 402, 403, 402, 402, 402],
-};
-
-const indices = [
-  { label: "S&P 500", value: "5,284.19", change: "−0.42%", up: false },
-  { label: "NASDAQ", value: "16,432.88", change: "−1.18%", up: false },
-  { label: "DOW", value: "39,872.03", change: "−0.21%", up: false },
-  { label: "VIX", value: "18.24", change: "+6.10%", up: true },
-];
-
-const movers = [
-  {
-    ticker: "NVDA",
-    name: "NVIDIA",
-    reason: "AI 수요 둔화 우려",
-    pct: "-4.82%",
-    price: "$412.73",
-    up: false,
-    data: sparkData.NVDA,
-  },
-  {
-    ticker: "TSLA",
-    name: "Tesla",
-    reason: "Q1 인도량 하회",
-    pct: "-3.21%",
-    price: "$168.29",
-    up: false,
-    data: sparkData.TSLA,
-  },
-  {
-    ticker: "AAPL",
-    name: "Apple",
-    reason: "서비스 매출 기대",
-    pct: "+0.42%",
-    price: "$186.55",
-    up: true,
-    data: sparkData.AAPL,
-  },
-  {
-    ticker: "MSFT",
-    name: "Microsoft",
-    reason: "금리 민감도",
-    pct: "-0.88%",
-    price: "$402.11",
-    up: false,
-    data: sparkData.MSFT,
-  },
-];
-
-const macros = [
-  { label: "10Y Treasury", value: "4.55%", delta: "+5bp", up: true },
-  { label: "VIX", value: "18.24", delta: "+1.05", up: true },
-  { label: "DXY (달러)", value: "106.18", delta: "+0.32%", up: true },
-  { label: "WTI 원유", value: "$82.41", delta: "−0.74%", up: false },
-];
-
-const events = [
-  {
-    time: "KST 21:30",
-    title: "미국 3월 PCE 물가지수 발표",
-    desc: "예상 2.6% YoY · 연준 선호 지표",
-    chip: "중요",
-    chipAccent: true,
-  },
-  {
-    time: "KST 06:00",
-    title: "MSFT · GOOGL 실적 발표",
-    desc: "애프터마켓 · 가이던스 주목",
-    chip: "이벤트",
-    chipAccent: false,
-  },
-];
+import { useBriefing } from "@/hooks/queries";
 
 export default function Home() {
+  const { data, isLoading, isError } = useBriefing();
+
+  if (isLoading) return (
+    <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
+      <StatusBar time="--:--" />
+      <div className="overflow-y-auto h-full pt-[54px] pb-[96px] px-4 space-y-4">
+        <div className="h-16 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
+        <div className="h-24 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
+        <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
+        <div className="h-64 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
+      </div>
+      <TabBar active="home" />
+    </div>
+  );
+
+  if (isError || !data) return (
+    <div className="relative h-dvh overflow-hidden flex items-center justify-center" style={{ background: "var(--bg-1)" }}>
+      <div className="text-center">
+        <p style={{ color: "var(--text-1)" }}>데이터를 불러올 수 없습니다</p>
+        <button onClick={() => window.location.reload()} className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--accent)", color: "var(--text-0)" }}>
+          다시 시도
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div
       className="relative h-dvh overflow-hidden"
@@ -98,51 +50,53 @@ export default function Home() {
             className="text-xs font-medium"
             style={{ color: "var(--text-2)" }}
           >
-            4월 24일 금요일 · 장마감 04:00 ET
+            {data.date}
           </p>
           <h1
             className="text-[26px] font-extrabold tracking-tight leading-tight mt-1"
             style={{ color: "var(--text-0)" }}
           >
-            어제{" "}
-            <span style={{ color: "var(--accent)" }}>나스닥이 흔들린</span>
-            <br />
-            이유를 정리했어요
+            {data.headline}{" "}
+            <span style={{ color: "var(--accent)" }}>{data.headlineAccent}</span>
           </h1>
         </div>
 
         {/* Index ticker row */}
         <div className="flex gap-2 overflow-x-auto px-5 py-2 scrollbar-none" style={{ scrollbarWidth: "none" }}>
-          {indices.map((idx) => (
-            <div
-              key={idx.label}
-              className="min-w-[118px] shrink-0 rounded-[14px] border"
-              style={{
-                padding: "10px 12px",
-                background: "var(--bg-2)",
-                borderColor: "var(--line)",
-              }}
-            >
+          {data.indices.map((idx) => {
+            const up = idx.changePct >= 0;
+            const changeStr = (up ? "+" : "") + idx.changePct.toFixed(2) + "%";
+            return (
               <div
-                className="text-[11px] font-semibold"
-                style={{ color: "var(--text-2)" }}
+                key={idx.label}
+                className="min-w-[118px] shrink-0 rounded-[14px] border"
+                style={{
+                  padding: "10px 12px",
+                  background: "var(--bg-2)",
+                  borderColor: "var(--line)",
+                }}
               >
-                {idx.label}
+                <div
+                  className="text-[11px] font-semibold"
+                  style={{ color: "var(--text-2)" }}
+                >
+                  {idx.label}
+                </div>
+                <div
+                  className="font-mono text-sm font-semibold mt-0.5"
+                  style={{ color: "var(--text-0)" }}
+                >
+                  {idx.value.toLocaleString()}
+                </div>
+                <div
+                  className="font-mono text-[11px] mt-0.5"
+                  style={{ color: up ? "var(--up)" : "var(--down)" }}
+                >
+                  {changeStr}
+                </div>
               </div>
-              <div
-                className="font-mono text-sm font-semibold mt-0.5"
-                style={{ color: "var(--text-0)" }}
-              >
-                {idx.value}
-              </div>
-              <div
-                className="font-mono text-[11px] mt-0.5"
-                style={{ color: idx.up ? "var(--up)" : "var(--down)" }}
-              >
-                {idx.change}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Market TL;DR card */}
@@ -175,8 +129,7 @@ export default function Home() {
               className="text-[17px] font-bold leading-relaxed"
               style={{ color: "var(--text-0)" }}
             >
-              10년물 금리가 4.55%로 재상승하면서 고밸류 성장주 중심으로
-              차익실현 매물이 쏟아졌습니다.
+              {data.summary.body}
             </p>
 
             {/* Sub text */}
@@ -184,14 +137,12 @@ export default function Home() {
               className="text-[13px] mt-2"
               style={{ color: "var(--text-1)" }}
             >
-              엔비디아 어닝 가이던스 우려까지 겹쳐 반도체 섹터가 2.3%
-              하락. 방어주 성격의 유틸리티·헬스케어는 상대적으로
-              선방했어요.
+              {data.summary.sub}
             </p>
 
             {/* Tags */}
             <div className="flex gap-1.5 flex-wrap mt-3">
-              {["#금리", "#반도체", "#엔비디아"].map((tag) => (
+              {data.summary.tags.map((tag) => (
                 <span
                   key={tag}
                   className="text-xs rounded-full border h-6 flex items-center px-2.5"
@@ -228,59 +179,65 @@ export default function Home() {
 
           {/* Mover items */}
           <div className="flex flex-col gap-2">
-            {movers.map((m) => (
-              <div
-                key={m.ticker}
-                className="flex items-center gap-3 rounded-[14px] border"
-                style={{
-                  padding: "12px 14px",
-                  background: "var(--bg-2)",
-                  borderColor: "var(--line)",
-                }}
-              >
-                <Avatar ticker={m.ticker} />
+            {data.movers.map((m) => {
+              const up = m.changePct >= 0;
+              const pctStr = (up ? "+" : "") + m.changePct.toFixed(2) + "%";
+              const priceStr = "$" + m.price.toFixed(2);
+              return (
+                <Link
+                  key={m.ticker}
+                  href={`/report/${m.ticker}`}
+                  className="flex items-center gap-3 rounded-[14px] border"
+                  style={{
+                    padding: "12px 14px",
+                    background: "var(--bg-2)",
+                    borderColor: "var(--line)",
+                  }}
+                >
+                  <Avatar ticker={m.ticker} />
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="font-mono text-sm font-semibold"
-                      style={{ color: "var(--text-0)" }}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="font-mono text-sm font-semibold"
+                        style={{ color: "var(--text-0)" }}
+                      >
+                        {m.ticker}
+                      </span>
+                      <span
+                        className="text-[11px]"
+                        style={{ color: "var(--text-2)" }}
+                      >
+                        {m.name}
+                      </span>
+                    </div>
+                    <div
+                      className="text-[11px] mt-0.5 truncate"
+                      style={{ color: "var(--text-3)" }}
                     >
-                      {m.ticker}
-                    </span>
-                    <span
-                      className="text-[11px]"
+                      {m.reason}
+                    </div>
+                  </div>
+
+                  <Sparkline data={m.sparkline} up={up} width={52} height={22} />
+
+                  <div className="text-right shrink-0">
+                    <div
+                      className="font-mono text-sm font-semibold"
+                      style={{ color: up ? "var(--up)" : "var(--down)" }}
+                    >
+                      {pctStr}
+                    </div>
+                    <div
+                      className="font-mono text-[11px]"
                       style={{ color: "var(--text-2)" }}
                     >
-                      {m.name}
-                    </span>
+                      {priceStr}
+                    </div>
                   </div>
-                  <div
-                    className="text-[11px] mt-0.5 truncate"
-                    style={{ color: "var(--text-3)" }}
-                  >
-                    {m.reason}
-                  </div>
-                </div>
-
-                <Sparkline data={m.data} up={m.up} width={52} height={22} />
-
-                <div className="text-right shrink-0">
-                  <div
-                    className="font-mono text-sm font-semibold"
-                    style={{ color: m.up ? "var(--up)" : "var(--down)" }}
-                  >
-                    {m.pct}
-                  </div>
-                  <div
-                    className="font-mono text-[11px]"
-                    style={{ color: "var(--text-2)" }}
-                  >
-                    {m.price}
-                  </div>
-                </div>
-              </div>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
@@ -302,7 +259,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {macros.map((m) => (
+            {data.macros.map((m) => (
               <div
                 key={m.label}
                 className="rounded-xl border p-3"
@@ -346,7 +303,7 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col gap-2">
-            {events.map((ev) => (
+            {data.events.map((ev) => (
               <div
                 key={ev.title}
                 className="rounded-[14px] border"
@@ -366,17 +323,17 @@ export default function Home() {
                   <span
                     className="text-[11px] font-semibold rounded-full px-2 h-5 flex items-center"
                     style={{
-                      background: ev.chipAccent
+                      background: ev.important
                         ? "var(--accent-soft)"
                         : "var(--bg-3)",
-                      color: ev.chipAccent ? "var(--accent)" : "var(--text-1)",
+                      color: ev.important ? "var(--accent)" : "var(--text-1)",
                       border: "1px solid",
-                      borderColor: ev.chipAccent
+                      borderColor: ev.important
                         ? "var(--accent-ring)"
                         : "var(--line)",
                     }}
                   >
-                    {ev.chip}
+                    {ev.tag}
                   </span>
                 </div>
                 <p

@@ -131,7 +131,7 @@
   --radius-l: 20px;
   --radius-xl: 28px;
 
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
   --font-sans: 'Pretendard', -apple-system, system-ui, sans-serif;
 }
 

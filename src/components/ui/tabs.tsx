@@ -41,13 +41,36 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = "default",
+  children,
   ...props
 }: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
       data-variant={variant}
-      className={cn(tabsListVariants({ variant }), className)}
+      className={cn(tabsListVariants({ variant }), "relative", className)}
+      {...props}
+    >
+      {children}
+      <TabsIndicator />
+    </TabsPrimitive.List>
+  )
+}
+
+function TabsIndicator({
+  className,
+  ...props
+}: Partial<TabsPrimitive.Indicator.Props>) {
+  return (
+    <TabsPrimitive.Indicator
+      data-slot="tabs-indicator"
+      className={cn(
+        "absolute rounded-md transition-all duration-200 ease-out",
+        "group-data-[variant=default]/tabs-list:inset-y-[3px] group-data-[variant=default]/tabs-list:bg-background group-data-[variant=default]/tabs-list:shadow-sm",
+        "group-data-[variant=line]/tabs-list:bottom-0 group-data-[variant=line]/tabs-list:h-0.5 group-data-[variant=line]/tabs-list:bg-foreground",
+        "dark:group-data-[variant=default]/tabs-list:border dark:group-data-[variant=default]/tabs-list:border-input dark:group-data-[variant=default]/tabs-list:bg-input/30",
+        className,
+      )}
       {...props}
     />
   )
@@ -79,4 +102,4 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   )
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+export { Tabs, TabsList, TabsTrigger, TabsContent, TabsIndicator, tabsListVariants }

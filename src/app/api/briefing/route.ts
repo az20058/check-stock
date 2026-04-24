@@ -4,9 +4,9 @@ import { fetchQuotes } from "@/lib/clients/finnhub";
 import type { MarketIndex } from "@/types/stock";
 
 const symbolMap = [
-  { label: "S&P 500", symbol: "SPY" },
-  { label: "NASDAQ", symbol: "QQQ" },
-  { label: "DOW", symbol: "DIA" },
+  { label: "SPY", symbol: "SPY" },
+  { label: "QQQ", symbol: "QQQ" },
+  { label: "DIA", symbol: "DIA" },
   { label: "VIX", symbol: "^VIX" },
 ];
 

@@ -1,5 +1,4 @@
 import { http, HttpResponse, delay } from "msw";
-import { briefingData } from "./data/briefing";
 import { allStocks } from "./data/stocks";
 import { getReport } from "./data/reports";
 
@@ -8,11 +7,6 @@ const watchlistTickers = new Set([
 ]);
 
 export const handlers = [
-  http.get("/api/briefing", async () => {
-    await delay(200);
-    return HttpResponse.json(briefingData);
-  }),
-
   http.get("/api/stocks/:ticker/report", async ({ params }) => {
     await delay(200);
     const report = getReport(params.ticker as string);

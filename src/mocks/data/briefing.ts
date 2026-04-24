@@ -6,9 +6,9 @@ export const briefingData: BriefingData = {
   headline: "이유를 정리했어요",
   headlineAccent: "나스닥이 흔들린",
   indices: [
-    { label: "S&P 500", value: 5284.19, changePct: -0.42 },
-    { label: "NASDAQ", value: 16432.88, changePct: -1.18 },
-    { label: "DOW", value: 39872.03, changePct: -0.21 },
+    { label: "SPY", value: 708.45, changePct: -0.39 },
+    { label: "QQQ", value: 651.42, changePct: -0.56 },
+    { label: "DIA", value: 493.0, changePct: -0.36 },
     { label: "VIX", value: 18.24, changePct: 6.1 },
   ],
   summary: {

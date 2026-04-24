@@ -13,17 +13,21 @@ export interface BriefingRun {
   finished_at: string | null;
   status: RunStatus;
   triggered_by: "cron" | "manual";
+  session: import("@/types/stock").BriefingSession;
   error: string | null;
   raw_sources: RawSources | null;
   briefing_data: Omit<PipelineOutput, "usage"> | null;
   token_usage: TokenUsage | null;
 }
 
-export async function startRun(triggeredBy: "cron" | "manual"): Promise<string> {
+export async function startRun(
+  triggeredBy: "cron" | "manual",
+  session: import("@/types/stock").BriefingSession,
+): Promise<string> {
   const supa = getServerClient();
   const { data, error } = await supa
     .from(TABLE)
-    .insert({ status: "running", triggered_by: triggeredBy })
+    .insert({ status: "running", triggered_by: triggeredBy, session })
     .select("id")
     .single();
   if (error || !data) throw new Error(`startRun failed: ${error?.message ?? "no data"}`);
@@ -67,11 +71,14 @@ export async function failRun(runId: string, err: unknown): Promise<void> {
     .eq("id", runId);
 }
 
-export async function getLatestSnapshot(): Promise<BriefingRun | null> {
+export async function getLatestSnapshot(
+  session: import("@/types/stock").BriefingSession,
+): Promise<BriefingRun | null> {
   const supa = getServerClient();
   const { data, error } = await supa
     .from(TABLE)
     .select("*")
+    .eq("session", session)
     .in("status", ["success", "partial"])
     .order("started_at", { ascending: false })
     .limit(1)

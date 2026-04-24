@@ -2,6 +2,8 @@ export type TimeRange = "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
 
 export type MarketCode = "US" | "KR";
 
+export type BriefingSession = "us_close" | "us_pre" | "kr_close";
+
 export interface Stock {
   ticker: string;
   name: string;
@@ -64,6 +66,7 @@ export interface MarketBriefing {
 
 export interface BriefingData {
   generatedAt: string;
+  session: BriefingSession;
   us: MarketBriefing;
   kr: MarketBriefing;
 }

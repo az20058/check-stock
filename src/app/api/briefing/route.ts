@@ -3,7 +3,7 @@ import { fetchQuotes } from "@/lib/clients/finnhub";
 import { fetchYahooQuotes, toYahooSymbol, KR_INDEX_SYMBOLS } from "@/lib/clients/yahoo";
 import { getLatestSnapshot } from "@/lib/briefing/storage";
 import { getStockMeta, inferMarket } from "@/lib/data/stock-meta";
-import type { BriefingData, MarketBriefing, MarketIndex } from "@/types/stock";
+import type { BriefingData, BriefingSession, MarketBriefing, MarketIndex } from "@/types/stock";
 import { US_MOVER_TICKERS, KR_MOVER_TICKERS } from "@/lib/briefing/build";
 
 const US_INDEX_SYMBOLS: { label: string; symbol: string }[] = [
@@ -15,8 +15,17 @@ const US_INDEX_SYMBOLS: { label: string; symbol: string }[] = [
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const snapshot = await getLatestSnapshot();
+function currentSession(): BriefingSession {
+  const kstHour = (new Date().getUTCHours() + 9) % 24;
+  if (kstHour >= 7 && kstHour < 16) return "kr_close";
+  if (kstHour >= 16 && kstHour < 23) return "us_pre";
+  return "us_close";
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const session = (searchParams.get("session") as BriefingSession) || currentSession();
+  const snapshot = await getLatestSnapshot(session);
   if (!snapshot?.briefing_data) {
     return NextResponse.json(
       { error: "브리핑 데이터가 아직 생성되지 않았습니다. 배치를 실행해주세요." },
@@ -147,6 +156,7 @@ export async function GET() {
 
   const briefing: BriefingData = {
     generatedAt: snapshot.started_at,
+    session: rawSnap.session ?? "us_close",
     us: usBriefing,
     kr: krBriefing,
   };

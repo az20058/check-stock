@@ -111,6 +111,11 @@ export async function fetchKoreanNews(limit = 20): Promise<KoreanNewsItem[]> {
   return dedup(all, limit);
 }
 
+/** 특정 키워드로 한국어 뉴스 검색 (종목 리포트용) */
+export async function fetchKoreanNewsByQuery(query: string, limit = 4): Promise<KoreanNewsItem[]> {
+  return fetchGoogleNewsRss(query, limit);
+}
+
 /** 한국 시장 관련 한국어 뉴스 */
 export async function fetchKoreanMarketNews(limit = 20): Promise<KoreanNewsItem[]> {
   const perQuery = Math.ceil(limit / GOOGLE_QUERIES_KR.length);

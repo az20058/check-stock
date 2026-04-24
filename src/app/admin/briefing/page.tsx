@@ -6,7 +6,7 @@ import SnapshotPreview from "./_components/snapshot-preview";
 export const dynamic = "force-dynamic";
 
 export default async function AdminBriefingPage() {
-  const [runs, latest] = await Promise.all([listRecentRuns(20), getLatestSnapshot()]);
+  const [runs, latest] = await Promise.all([listRecentRuns(20), getLatestSnapshot("us_close")]);
 
   return (
     <div className="min-h-dvh bg-gray-950 text-gray-100 p-8">

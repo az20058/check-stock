@@ -1,7 +1,7 @@
 import "server-only";
 import { fetchQuotes } from "@/lib/clients/finnhub";
 import { fetchCompanyNews } from "@/lib/collectors/company-news";
-import { fetchKoreanNews } from "@/lib/collectors/korean-news";
+import { fetchKoreanNewsByQuery } from "@/lib/collectors/korean-news";
 import { fetchMacros } from "@/lib/collectors/macros";
 import { fetchAllCandles } from "@/lib/clients/finnhub-candles";
 import { callClaudeJson } from "@/lib/clients/anthropic";
@@ -66,7 +66,7 @@ export async function generateReport(ticker: string): Promise<StockReport> {
   const [quotesRes, newsRes, koreanNewsRes, macrosRes, candlesRes] = await Promise.allSettled([
     fetchQuotes([upperTicker]),
     fetchCompanyNews(upperTicker, 6),
-    koreanQuery ? fetchKoreanNews(6) : Promise.resolve([]),
+    koreanQuery ? fetchKoreanNewsByQuery(nameKo, 4) : Promise.resolve([]),
     fetchMacros(),
     fetchAllCandles(upperTicker),
   ]);
@@ -145,7 +145,6 @@ ${macros.map((m) => `- ${m.label}: ${m.value} (${m.delta})`).join("\n") || "(없
   });
 
   const koNews: NewsItem[] = koreanNews
-    .filter((n) => nameKo !== upperTicker && n.title.includes(nameKo))
     .slice(0, 4)
     .map((n) => {
       const pubMs = new Date(n.pubDate).getTime();

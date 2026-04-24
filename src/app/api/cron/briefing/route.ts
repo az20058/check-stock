@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
   try {
-    const runId = await runBriefing("cron");
+    const runId = await runBriefing("cron", "us_close");
     return NextResponse.json({ ok: true, runId });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";

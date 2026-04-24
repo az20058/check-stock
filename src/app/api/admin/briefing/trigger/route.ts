@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
-    const runId = await runBriefing("manual");
+    const runId = await runBriefing("manual", "us_close");
     return NextResponse.json({ ok: true, runId });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";

@@ -21,7 +21,7 @@ import {
 } from "@/lib/briefing/schema";
 import type { RawSources, TokenUsage } from "@/lib/briefing/types";
 import type { BriefingData, MacroItem } from "@/types/stock";
-import { briefingData as mockBriefing } from "@/mocks/data/briefing";
+
 
 export interface PipelineOutput {
   briefing: Omit<BriefingData, "indices" | "movers"> & {
@@ -105,7 +105,7 @@ export async function runAiPipeline(args: {
     addUsage(evRes.usage);
     events = eventsSchema.parse(evRes.data).events;
   } catch {
-    events = mockBriefing.events;
+    events = [];
   }
 
   return {

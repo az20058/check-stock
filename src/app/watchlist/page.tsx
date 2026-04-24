@@ -4,12 +4,16 @@ import Link from "next/link";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import Sparkline from "@/components/Sparkline";
-import { useWatchlist } from "@/hooks/queries";
+import { useStockQuotes } from "@/hooks/queries";
+import { useLocalWatchlist } from "@/hooks/useLocalWatchlist";
+import { getStockMeta } from "@/lib/data/stock-meta";
 import { formatPct, formatPrice } from "@/lib/format";
 import { heatmapBg, portfolioStats, sortByAbsChange } from "@/lib/portfolio";
+import type { Stock } from "@/types/stock";
 
 export default function WatchlistPage() {
-  const { data, isLoading, isError } = useWatchlist();
+  const { tickers } = useLocalWatchlist();
+  const { data: quotes, isLoading, isError } = useStockQuotes(tickers);
 
   if (isLoading) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
@@ -23,7 +27,25 @@ export default function WatchlistPage() {
     </div>
   );
 
-  if (isError || !data) return (
+  const stocks: Stock[] = (quotes ?? []).map((q) => {
+    const meta = getStockMeta(q.symbol);
+    const changePct = q.dp;
+    const price = q.c;
+    const change = price - price / (1 + changePct / 100);
+    return {
+      ticker: q.symbol,
+      name: meta?.nameKo ?? q.symbol,
+      nameKo: meta?.nameKo ?? q.symbol,
+      exchange: "",
+      sector: meta?.sector ?? "",
+      price,
+      change,
+      changePct,
+      sparkline: [],
+    };
+  });
+
+  if (isError) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
       <div className="flex items-center justify-center h-full">
         <p className="text-sm" style={{ color: "var(--text-2)" }}>데이터를 불러오지 못했습니다.</p>
@@ -31,8 +53,6 @@ export default function WatchlistPage() {
       <TabBar active="watch" />
     </div>
   );
-
-  const { stocks, mostMentioned } = data;
 
   const { upCount, downCount, upPct } = portfolioStats(stocks);
   const sortedByChange = sortByAbsChange(stocks);
@@ -285,80 +305,6 @@ export default function WatchlistPage() {
                     {formatPct(s.changePct)}
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* 가장 많이 언급된 section */}
-        <div className="px-4 mt-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2
-              className="text-lg font-bold"
-              style={{ color: "var(--text-0)" }}
-            >
-              가장 많이 언급된
-            </h2>
-            <span
-              className="text-xs"
-              style={{ color: "var(--text-2)" }}
-            >
-              뉴스 기준
-            </span>
-          </div>
-
-          <div
-            className="rounded-[14px] border overflow-hidden"
-            style={{
-              background: "var(--bg-2)",
-              borderColor: "var(--line)",
-            }}
-          >
-            {mostMentioned.map((item, i) => (
-              <Link
-                key={item.ticker}
-                href={`/report/${item.ticker}`}
-                className="flex items-center gap-3"
-                style={{
-                  padding: "12px 16px",
-                  borderBottom: i < mostMentioned.length - 1 ? "1px solid var(--line)" : "none",
-                }}
-              >
-                {/* Rank badge */}
-                <div
-                  className="flex items-center justify-center rounded-[7px] border font-mono text-[11px] font-bold shrink-0"
-                  style={{
-                    width: 22,
-                    height: 22,
-                    background: "var(--bg-3)",
-                    borderColor: "var(--line)",
-                    color: "var(--text-0)",
-                  }}
-                >
-                  {i + 1}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <span
-                    className="font-mono text-sm font-bold"
-                    style={{ color: "var(--text-0)" }}
-                  >
-                    {item.ticker}
-                  </span>
-                  <span
-                    className="text-[11px] ml-1.5"
-                    style={{ color: "var(--text-2)" }}
-                  >
-                    {item.name}
-                  </span>
-                </div>
-
-                <span
-                  className="font-mono text-xs font-semibold shrink-0"
-                  style={{ color: "var(--text-1)" }}
-                >
-                  {item.count}건
-                </span>
               </Link>
             ))}
           </div>

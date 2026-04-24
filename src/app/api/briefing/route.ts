@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { briefingData as mockBriefing } from "@/mocks/data/briefing";
-import { stocksMap } from "@/mocks/data/stocks";
 import { fetchQuotes } from "@/lib/clients/finnhub";
 import { getLatestSnapshot } from "@/lib/briefing/storage";
-import type { BriefingData, MarketIndex, Stock } from "@/types/stock";
+import { getStockMeta } from "@/lib/data/stock-meta";
+import type { BriefingData, MarketIndex } from "@/types/stock";
 import { MOVER_TICKERS } from "@/lib/briefing/build";
 
 const indexSymbolMap: { label: string; symbol: string }[] = [
@@ -16,61 +15,66 @@ const indexSymbolMap: { label: string; symbol: string }[] = [
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  let base: BriefingData = mockBriefing;
-  try {
-    const snapshot = await getLatestSnapshot();
-    if (snapshot?.briefing_data) {
-      const snap = snapshot.briefing_data;
-      base = {
-        date: snap.date ?? mockBriefing.date,
-        headline: snap.headline ?? mockBriefing.headline,
-        headlineAccent: snap.headlineAccent ?? mockBriefing.headlineAccent,
-        indices: mockBriefing.indices,
-        summary: snap.summary ?? mockBriefing.summary,
-        movers: snap.movers.map((m) => {
-          const s = stocksMap[m.ticker];
-          const mockMover = mockBriefing.movers.find((x) => x.ticker === m.ticker);
-          return {
-            ...(s ?? (mockMover as Stock)),
-            sparkline: mockMover?.sparkline ?? s?.sparkline ?? [],
-            reason: m.reason,
-          };
-        }),
-        macros: snap.macros?.length ? snap.macros : mockBriefing.macros,
-        events: snap.events?.length ? snap.events : mockBriefing.events,
-      };
-    }
-  } catch {
-    // snapshot read failed — keep mock
+  const snapshot = await getLatestSnapshot();
+  if (!snapshot?.briefing_data) {
+    return NextResponse.json(
+      { error: "브리핑 데이터가 아직 생성되지 않았습니다. 배치를 실행해주세요." },
+      { status: 503 },
+    );
   }
 
-  // Realtime quote overlays
-  try {
-    const symbols = [
-      ...indexSymbolMap.map((x) => x.symbol),
-      ...MOVER_TICKERS,
-    ];
-    const quotes = await fetchQuotes(symbols);
-    const bySymbol = new Map(quotes.map((q) => [q.symbol, q]));
+  const snap = snapshot.briefing_data;
 
-    base = {
-      ...base,
-      indices: indexSymbolMap.map(({ label, symbol }): MarketIndex => {
-        const q = bySymbol.get(symbol);
-        if (q) return { label, value: q.c, changePct: q.dp };
-        const fallback = base.indices.find((i) => i.label === label);
-        return fallback ?? { label, value: 0, changePct: 0 };
-      }),
-      movers: base.movers.map((m) => {
-        const q = bySymbol.get(m.ticker);
-        if (!q) return m;
-        const change = q.c - (q.c / (1 + q.dp / 100));
-        return { ...m, price: q.c, change, changePct: q.dp };
-      }),
+  // 실시간 시세 오버레이
+  const symbols = [
+    ...indexSymbolMap.map((x) => x.symbol),
+    ...MOVER_TICKERS,
+  ];
+
+  let quotes: Awaited<ReturnType<typeof fetchQuotes>> = [];
+  try {
+    quotes = await fetchQuotes(symbols);
+  } catch {
+    // 시세 조회 실패 시 스냅샷 데이터만 사용
+  }
+
+  const bySymbol = new Map(quotes.map((q) => [q.symbol, q]));
+
+  const indices: MarketIndex[] = indexSymbolMap.map(({ label, symbol }) => {
+    const q = bySymbol.get(symbol);
+    return { label, value: q?.c ?? 0, changePct: q?.dp ?? 0 };
+  });
+
+  const movers = snap.movers.map((m) => {
+    const q = bySymbol.get(m.ticker);
+    const meta = getStockMeta(m.ticker);
+    const price = q?.c ?? 0;
+    const changePct = q?.dp ?? 0;
+    const change = price - price / (1 + changePct / 100);
+    return {
+      ticker: m.ticker,
+      name: meta?.nameKo ?? m.ticker,
+      nameKo: meta?.nameKo ?? m.ticker,
+      exchange: "",
+      sector: meta?.sector ?? "",
+      price,
+      change,
+      changePct,
+      sparkline: [] as number[],
+      reason: m.reason,
     };
-  } catch {
-    // quotes failed — keep base
-  }
+  });
 
-  return NextResponse.json(base);
+  const briefing: BriefingData = {
+    date: snap.date ?? "",
+    headline: snap.headline ?? "",
+    headlineAccent: snap.headlineAccent ?? "",
+    indices,
+    summary: snap.summary ?? { title: "", body: "", sub: "", tags: [] },
+    movers,
+    macros: snap.macros?.length ? snap.macros : [],
+    events: snap.events?.length ? snap.events : [],
+  };
+
+  return NextResponse.json(briefing);
 }

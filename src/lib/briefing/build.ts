@@ -4,7 +4,7 @@ import { fetchCompanyNews } from "@/lib/collectors/company-news";
 import { fetchMacros } from "@/lib/collectors/macros";
 import { fetchEconomicCalendar } from "@/lib/collectors/economic-calendar";
 import { fetchQuotes } from "@/lib/clients/finnhub";
-import { stocksMap } from "@/mocks/data/stocks";
+import { getStockMeta } from "@/lib/data/stock-meta";
 import { runAiPipeline } from "@/lib/ai/pipeline";
 import { startRun, finishRun, failRun } from "./storage";
 import type { RawSources } from "./types";
@@ -43,12 +43,12 @@ export async function runBriefing(triggeredBy: "cron" | "manual"): Promise<strin
     };
 
     const movers = MOVER_TICKERS.map((t) => {
-      const s = stocksMap[t];
+      const meta = getStockMeta(t);
       const q = quotes.find((x) => x.symbol === t);
       return {
         ticker: t,
-        nameKo: s.nameKo,
-        changePct: q?.dp ?? s.changePct,
+        nameKo: meta?.nameKo ?? t,
+        changePct: q?.dp ?? 0,
       };
     });
 

@@ -1,5 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { BriefingData, StockReport, WatchlistData, Stock } from "@/types/stock";
+import { useQuery } from "@tanstack/react-query";
+import type { BriefingData, StockReport, Stock } from "@/types/stock";
+import type { FinnhubQuote } from "@/lib/clients/finnhub";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -22,13 +23,6 @@ export function useStockReport(ticker: string) {
   });
 }
 
-export function useWatchlist() {
-  return useQuery({
-    queryKey: ["watchlist"],
-    queryFn: () => fetchJson<WatchlistData>("/api/watchlist"),
-  });
-}
-
 export function useSearchStocks(query: string) {
   return useQuery({
     queryKey: ["search", query],
@@ -37,18 +31,14 @@ export function useSearchStocks(query: string) {
   });
 }
 
-export function useToggleWatchlist() {
-  const queryClient = useQueryClient();
-
-  const add = useMutation({
-    mutationFn: (ticker: string) => fetch(`/api/watchlist/${ticker}`, { method: "POST" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watchlist"] }),
+export function useStockQuotes(tickers: string[]) {
+  return useQuery({
+    queryKey: ["quotes", tickers.join(",")],
+    queryFn: () =>
+      fetchJson<FinnhubQuote[]>(
+        `/api/stocks/quotes?tickers=${tickers.join(",")}`,
+      ),
+    enabled: tickers.length > 0,
+    refetchInterval: 60_000,
   });
-
-  const remove = useMutation({
-    mutationFn: (ticker: string) => fetch(`/api/watchlist/${ticker}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watchlist"] }),
-  });
-
-  return { add, remove };
 }

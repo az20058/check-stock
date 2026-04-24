@@ -2,9 +2,9 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { useStockReport, useWatchlist, useToggleWatchlist } from "@/hooks/queries";
+import { useStockReport } from "@/hooks/queries";
+import { useLocalWatchlist } from "@/hooks/useLocalWatchlist";
 import type { TimeRange } from "@/types/stock";
-import { isWatched } from "@/lib/portfolio";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import PriceChart from "@/components/PriceChart";
@@ -17,11 +17,10 @@ export default function ReportPage() {
   const router = useRouter();
   const ticker = (params.ticker as string).toUpperCase();
   const { data, isLoading, isError } = useStockReport(ticker);
-  const { data: watchlistData } = useWatchlist();
-  const { add, remove } = useToggleWatchlist();
+  const { isWatched, add, remove } = useLocalWatchlist();
   const [range, setRange] = useState<TimeRange>("1D");
 
-  const watched = isWatched(watchlistData?.stocks, ticker);
+  const watched = isWatched(ticker);
 
   if (isLoading) {
     return (
@@ -102,7 +101,7 @@ export default function ReportPage() {
             className="w-9 h-9 rounded-xl flex items-center justify-center border"
             style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
             aria-label={watched ? "관심종목 제거" : "관심종목 추가"}
-            onClick={() => watched ? remove.mutate(ticker) : add.mutate(ticker)}
+            onClick={() => watched ? remove(ticker) : add(ticker)}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill={watched ? "var(--accent)" : "none"} stroke={watched ? "none" : "var(--text-2)"} strokeWidth="2">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />

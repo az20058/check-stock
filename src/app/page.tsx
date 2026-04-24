@@ -1,12 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import Sparkline from "@/components/Sparkline";
 import { useBriefing } from "@/hooks/queries";
+import { formatPrice, formatPct } from "@/lib/format";
+import type { MarketCode, MarketBriefing } from "@/types/stock";
+
+function defaultMarket(): MarketCode {
+  const kstHour = (new Date().getUTCHours() + 9) % 24;
+  const kstDay = new Date().getDay();
+  const isWeekday = kstDay >= 1 && kstDay <= 5;
+  return isWeekday && kstHour >= 9 && kstHour < 16 ? "KR" : "US";
+}
 
 export default function Home() {
+  const [market, setMarket] = useState<MarketCode>(defaultMarket);
   const { data, isLoading, isError } = useBriefing();
 
   if (isLoading) return (
@@ -32,6 +43,10 @@ export default function Home() {
     </div>
   );
 
+  const m: MarketBriefing = market === "US" ? data.us : data.kr;
+  const marketLabel = market === "US" ? "미국" : "한국";
+  const isKR = market === "KR";
+
   return (
     <div
       className="relative h-dvh overflow-hidden"
@@ -40,26 +55,65 @@ export default function Home() {
       {/* Scrollable content */}
       <div className="overflow-y-auto h-full pt-3 pb-[96px]">
 
+        {/* Top: title + market segment */}
+        <div style={{ padding: "6px 16px 10px" }}>
+          <div className="flex items-center justify-between mb-2.5">
+            <span
+              className="text-[11px] font-semibold uppercase tracking-widest"
+              style={{ color: "var(--text-2)" }}
+            >
+              오늘의 브리핑
+            </span>
+          </div>
+
+          {/* Market segment tabs */}
+          <div
+            className="flex rounded-[14px] border p-1 gap-0.5"
+            style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
+          >
+            {([
+              { code: "US" as MarketCode, flag: "\u{1F1FA}\u{1F1F8}", label: "미국" },
+              { code: "KR" as MarketCode, flag: "\u{1F1F0}\u{1F1F7}", label: "한국" },
+            ]).map((tab) => (
+              <button
+                key={tab.code}
+                onClick={() => setMarket(tab.code)}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-[11px] text-sm font-bold transition-colors"
+                style={{
+                  padding: "10px 12px",
+                  background: market === tab.code ? "var(--bg-4)" : "transparent",
+                  color: market === tab.code ? "var(--text-0)" : "var(--text-2)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                <span className="text-sm">{tab.flag}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Hero greeting */}
-        <div style={{ padding: "14px 20px 6px" }}>
+        <div style={{ padding: "8px 20px 6px" }}>
           <p
             className="text-xs font-medium"
             style={{ color: "var(--text-2)" }}
           >
-            {data.date}
+            {m.dateLabel}
           </p>
           <h1
             className="text-[26px] font-extrabold tracking-tight leading-tight mt-1"
             style={{ color: "var(--text-0)" }}
           >
-            {data.headline}{" "}
-            <span style={{ color: "var(--accent)" }}>{data.headlineAccent}</span>
+            <span style={{ color: "var(--accent)" }}>{m.headlineAccent}</span>
+            <br />
+            {m.headline}
           </h1>
         </div>
 
         {/* Index ticker row */}
         <div className="flex gap-2 overflow-x-auto px-5 py-2 scrollbar-none" style={{ scrollbarWidth: "none" }}>
-          {data.indices.map((idx) => {
+          {m.indices.map((idx) => {
             const up = idx.changePct >= 0;
             const changeStr = (up ? "+" : "") + idx.changePct.toFixed(2) + "%";
             return (
@@ -106,7 +160,6 @@ export default function Home() {
               padding: "18px",
             }}
           >
-            {/* Header dot + label */}
             <div className="flex items-center gap-2 mb-3">
               <span
                 className="w-1.5 h-1.5 rounded-full"
@@ -116,29 +169,26 @@ export default function Home() {
                 className="text-[11px] font-semibold uppercase tracking-widest"
                 style={{ color: "var(--accent)" }}
               >
-                오늘의 시장 요약
+                {marketLabel} 시장 요약
               </span>
             </div>
 
-            {/* Main text */}
             <p
               className="text-[17px] font-bold leading-relaxed"
               style={{ color: "var(--text-0)" }}
             >
-              {data.summary.body}
+              {m.summary.body}
             </p>
 
-            {/* Sub text */}
             <p
               className="text-[13px] mt-2"
               style={{ color: "var(--text-1)" }}
             >
-              {data.summary.sub}
+              {m.summary.sub}
             </p>
 
-            {/* Tags */}
             <div className="flex gap-1.5 flex-wrap mt-3">
-              {data.summary.tags.map((tag) => (
+              {m.summary.tags.map((tag) => (
                 <span
                   key={tag}
                   className="text-xs rounded-full border h-6 flex items-center px-2.5"
@@ -155,34 +205,102 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 내 관심 종목 변동 section */}
-        <div className="px-4 mt-1">
-          {/* Section header */}
+        {/* Causes TOP 3 */}
+        {m.causes.length > 0 && (
+          <div className="px-4 mt-2">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <h2
+                className="text-lg font-bold"
+                style={{ color: "var(--text-0)" }}
+              >
+                오늘의 원인{" "}
+                <span style={{ color: "var(--accent)" }}>TOP 3</span>
+              </h2>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {m.causes.map((c) => (
+                <div
+                  key={c.rank}
+                  className="flex gap-3 rounded-[14px] border"
+                  style={{
+                    padding: "14px",
+                    background: "var(--bg-2)",
+                    borderColor: "var(--line)",
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-center shrink-0 w-7 h-7 rounded-lg text-sm font-bold"
+                    style={{
+                      background: c.rank === 1 ? "var(--accent)" : "var(--bg-3)",
+                      color: c.rank === 1 ? "#fff" : "var(--text-1)",
+                    }}
+                  >
+                    {c.rank}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="text-[15px] font-bold"
+                      style={{ color: "var(--text-0)" }}
+                    >
+                      {c.title}
+                    </p>
+                    <p
+                      className="text-[12px] mt-1"
+                      style={{ color: "var(--text-2)" }}
+                    >
+                      {c.desc}
+                    </p>
+                    {c.tags.length > 0 && (
+                      <div className="flex gap-1.5 mt-2">
+                        {c.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="text-[10px] rounded-full border h-5 flex items-center px-2"
+                            style={{
+                              background: "var(--bg-3)",
+                              color: "var(--text-2)",
+                              borderColor: "var(--line)",
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 관심 종목 변동 section */}
+        <div className="px-4 mt-4">
           <div className="flex items-center justify-between mb-2 px-1">
             <h2
               className="text-lg font-bold"
               style={{ color: "var(--text-0)" }}
             >
-              내 관심 종목 변동
+              내 {marketLabel} 관심종목
             </h2>
             <span
               className="text-xs"
               style={{ color: "var(--text-2)" }}
             >
-              전체보기
+              {m.movers.length}개
             </span>
           </div>
 
-          {/* Mover items */}
           <div className="flex flex-col gap-2">
-            {data.movers.map((m) => {
-              const up = m.changePct >= 0;
-              const pctStr = (up ? "+" : "") + m.changePct.toFixed(2) + "%";
-              const priceStr = "$" + m.price.toFixed(2);
+            {m.movers.map((mv) => {
+              const up = mv.changePct >= 0;
+              const pctStr = formatPct(mv.changePct);
+              const priceStr = formatPrice(mv.price, mv.currency);
               return (
                 <Link
-                  key={m.ticker}
-                  href={`/report/${m.ticker}`}
+                  key={mv.ticker}
+                  href={`/report/${mv.ticker}`}
                   className="flex items-center gap-3 rounded-[14px] border"
                   style={{
                     padding: "12px 14px",
@@ -190,34 +308,31 @@ export default function Home() {
                     borderColor: "var(--line)",
                   }}
                 >
-                  <Avatar ticker={m.ticker} />
+                  <Avatar ticker={isKR ? mv.nameKo.slice(0, 2) : mv.ticker} />
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span
-                        className="font-mono text-sm font-semibold"
-                        style={{ color: "var(--text-0)" }}
+                        className="text-[13px] font-bold"
+                        style={{
+                          color: "var(--text-0)",
+                          fontFamily: isKR ? "var(--font-sans)" : "var(--font-mono, monospace)",
+                        }}
                       >
-                        {m.ticker}
-                      </span>
-                      <span
-                        className="text-[11px]"
-                        style={{ color: "var(--text-2)" }}
-                      >
-                        {m.name}
+                        {isKR ? mv.nameKo : mv.ticker}
                       </span>
                     </div>
                     <div
                       className="text-[11px] mt-0.5 truncate"
                       style={{ color: "var(--text-3)" }}
                     >
-                      {m.reason}
+                      {mv.reason}
                     </div>
                   </div>
 
-                  <Sparkline data={m.sparkline} up={up} width={52} height={22} />
+                  <Sparkline data={mv.sparkline} up={up} width={44} height={22} />
 
-                  <div className="text-right shrink-0">
+                  <div className="text-right shrink-0" style={{ minWidth: 58 }}>
                     <div
                       className="font-mono text-sm font-semibold"
                       style={{ color: up ? "var(--up)" : "var(--down)" }}
@@ -255,9 +370,9 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {data.macros.map((m) => (
+            {m.macros.map((macro) => (
               <div
-                key={m.label}
+                key={macro.label}
                 className="rounded-xl border p-3"
                 style={{
                   background: "var(--bg-2)",
@@ -268,19 +383,19 @@ export default function Home() {
                   className="text-[10px] uppercase tracking-widest font-semibold"
                   style={{ color: "var(--text-3)" }}
                 >
-                  {m.label}
+                  {macro.label}
                 </div>
                 <div
                   className="font-mono text-base font-semibold mt-1"
                   style={{ color: "var(--text-0)" }}
                 >
-                  {m.value}
+                  {macro.value}
                 </div>
                 <div
                   className="font-mono text-[11px] mt-0.5"
-                  style={{ color: m.up ? "var(--up)" : "var(--down)" }}
+                  style={{ color: macro.up ? "var(--up)" : "var(--down)" }}
                 >
-                  {m.delta}
+                  {macro.delta}
                 </div>
               </div>
             ))}
@@ -288,66 +403,68 @@ export default function Home() {
         </div>
 
         {/* 오늘 주목 포인트 section */}
-        <div className="px-4 mt-4">
-          <div className="flex items-center justify-between mb-2 px-1">
-            <h2
-              className="text-lg font-bold"
-              style={{ color: "var(--text-0)" }}
-            >
-              오늘 주목 포인트
-            </h2>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {data.events.map((ev) => (
-              <div
-                key={ev.title}
-                className="rounded-[14px] border"
-                style={{
-                  padding: "14px",
-                  background: "var(--bg-2)",
-                  borderColor: "var(--line)",
-                }}
+        {m.events.length > 0 && (
+          <div className="px-4 mt-4">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <h2
+                className="text-lg font-bold"
+                style={{ color: "var(--text-0)" }}
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span
-                    className="font-mono text-[11px] font-semibold"
+                오늘 주목 포인트
+              </h2>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {m.events.map((ev) => (
+                <div
+                  key={ev.title}
+                  className="rounded-[14px] border"
+                  style={{
+                    padding: "14px",
+                    background: "var(--bg-2)",
+                    borderColor: "var(--line)",
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span
+                      className="font-mono text-[11px] font-semibold"
+                      style={{ color: "var(--text-2)" }}
+                    >
+                      {ev.time}
+                    </span>
+                    <span
+                      className="text-[11px] font-semibold rounded-full px-2 h-5 flex items-center"
+                      style={{
+                        background: ev.important
+                          ? "var(--accent-soft)"
+                          : "var(--bg-3)",
+                        color: ev.important ? "var(--accent)" : "var(--text-1)",
+                        border: "1px solid",
+                        borderColor: ev.important
+                          ? "var(--accent-ring)"
+                          : "var(--line)",
+                      }}
+                    >
+                      {ev.tag}
+                    </span>
+                  </div>
+                  <p
+                    className="text-[15px] font-bold"
+                    style={{ color: "var(--text-0)" }}
+                  >
+                    {ev.title}
+                  </p>
+                  <p
+                    className="text-[12px] mt-0.5"
                     style={{ color: "var(--text-2)" }}
                   >
-                    {ev.time}
-                  </span>
-                  <span
-                    className="text-[11px] font-semibold rounded-full px-2 h-5 flex items-center"
-                    style={{
-                      background: ev.important
-                        ? "var(--accent-soft)"
-                        : "var(--bg-3)",
-                      color: ev.important ? "var(--accent)" : "var(--text-1)",
-                      border: "1px solid",
-                      borderColor: ev.important
-                        ? "var(--accent-ring)"
-                        : "var(--line)",
-                    }}
-                  >
-                    {ev.tag}
-                  </span>
+                    {ev.desc}
+                  </p>
                 </div>
-                <p
-                  className="text-[15px] font-bold"
-                  style={{ color: "var(--text-0)" }}
-                >
-                  {ev.title}
-                </p>
-                <p
-                  className="text-[12px] mt-0.5"
-                  style={{ color: "var(--text-2)" }}
-                >
-                  {ev.desc}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Disclaimer */}
         <p

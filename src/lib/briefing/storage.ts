@@ -1,6 +1,6 @@
 import "server-only";
 import { getServerClient } from "@/lib/clients/supabase";
-import type { RawSources, TokenUsage } from "./types";
+import type { RawSources, KrRawSources, TokenUsage } from "./types";
 import type { PipelineOutput } from "@/lib/ai/pipeline";
 
 const TABLE = "briefing_runs";
@@ -15,7 +15,7 @@ export interface BriefingRun {
   triggered_by: "cron" | "manual";
   error: string | null;
   raw_sources: RawSources | null;
-  briefing_data: PipelineOutput["briefing"] | null;
+  briefing_data: Omit<PipelineOutput, "usage"> | null;
   token_usage: TokenUsage | null;
 }
 
@@ -35,7 +35,8 @@ export async function finishRun(
   payload: {
     status: "success" | "partial";
     sources: RawSources;
-    briefingData: PipelineOutput["briefing"];
+    krSources: KrRawSources;
+    briefingData: Omit<PipelineOutput, "usage">;
     tokenUsage: TokenUsage;
   },
 ): Promise<void> {

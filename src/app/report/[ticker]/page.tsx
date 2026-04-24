@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useStockReport } from "@/hooks/queries";
 import { useLocalWatchlist } from "@/hooks/useLocalWatchlist";
 import type { TimeRange } from "@/types/stock";
+import { inferMarket } from "@/lib/data/stock-meta";
+import { formatPrice, formatChange } from "@/lib/format";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import PriceChart from "@/components/PriceChart";
@@ -58,6 +60,8 @@ export default function ReportPage() {
   }
 
   const { stock, aiSummary, causes, sectorComparisons, news, macros, chartData } = data;
+  const market = stock.market ?? inferMarket(ticker);
+  const currency = stock.currency ?? (market === "KR" ? "KRW" : "USD");
   const up = stock.changePct >= 0;
   const changeSign = up ? "+" : "";
 
@@ -86,7 +90,7 @@ export default function ReportPage() {
               className="text-[11px] font-semibold"
               style={{ color: "var(--text-2)" }}
             >
-              {stock.exchange}
+              {market === "KR" ? "🇰🇷" : "🇺🇸"} {stock.exchange}
             </span>
             <span
               className="font-mono text-sm font-bold"
@@ -114,8 +118,12 @@ export default function ReportPage() {
           <div className="flex items-center gap-3 mb-3">
             <Avatar ticker={stock.ticker} size="lg" />
             <div>
-              <div className="text-lg font-bold" style={{ color: "var(--text-0)" }}>{stock.nameKo}</div>
-              <div className="text-xs" style={{ color: "var(--text-2)" }}>{stock.name} · {stock.sector}</div>
+              <div className="text-lg font-bold" style={{ color: "var(--text-0)" }}>
+                {market === "KR" ? stock.nameKo : stock.nameKo}
+              </div>
+              <div className="text-xs" style={{ color: "var(--text-2)" }}>
+                {market === "KR" ? `${stock.ticker} · ${stock.sector}` : `${stock.name} · ${stock.sector}`}
+              </div>
             </div>
           </div>
 
@@ -123,7 +131,7 @@ export default function ReportPage() {
             className="font-mono text-[34px] font-bold tracking-tight"
             style={{ color: "var(--text-0)" }}
           >
-            ${stock.price.toFixed(2)}
+            {formatPrice(stock.price, currency)}
           </div>
 
           <div className="flex items-center gap-2 mt-1">
@@ -131,7 +139,7 @@ export default function ReportPage() {
               className="font-mono text-[15px] font-semibold"
               style={{ color: up ? "var(--up)" : "var(--down)" }}
             >
-              {changeSign}${stock.change.toFixed(2)} ({changeSign}{stock.changePct.toFixed(2)}%)
+              {formatChange(stock.change, currency)} ({changeSign}{stock.changePct.toFixed(2)}%)
             </span>
             <span
               className="inline-flex items-center h-[22px] px-2 rounded-md text-[11px] font-semibold"

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import Sparkline from "@/components/Sparkline";
 import { useStockQuotes } from "@/hooks/queries";
 import { useLocalWatchlist } from "@/hooks/useLocalWatchlist";
-import { getStockMeta } from "@/lib/data/stock-meta";
+import { getStockMeta, inferMarket } from "@/lib/data/stock-meta";
 import { formatPct, formatPrice } from "@/lib/format";
 import { heatmapBg, portfolioStats, sortByAbsChange } from "@/lib/portfolio";
 import type { Stock } from "@/types/stock";
@@ -14,6 +15,7 @@ import type { Stock } from "@/types/stock";
 export default function WatchlistPage() {
   const { tickers } = useLocalWatchlist();
   const { data: quotes, isLoading, isError } = useStockQuotes(tickers);
+  const [filter, setFilter] = useState<"전체" | "US" | "KR">("전체");
 
   if (isLoading) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
@@ -29,6 +31,7 @@ export default function WatchlistPage() {
 
   const stocks: Stock[] = (quotes ?? []).map((q) => {
     const meta = getStockMeta(q.symbol);
+    const market = meta?.market ?? inferMarket(q.symbol);
     const changePct = q.dp;
     const price = q.c;
     const change = price - price / (1 + changePct / 100);
@@ -36,7 +39,9 @@ export default function WatchlistPage() {
       ticker: q.symbol,
       name: meta?.nameKo ?? q.symbol,
       nameKo: meta?.nameKo ?? q.symbol,
+      market,
       exchange: "",
+      currency: meta?.currency ?? (market === "KR" ? "KRW" : "USD"),
       sector: meta?.sector ?? "",
       price,
       change,
@@ -54,8 +59,14 @@ export default function WatchlistPage() {
     </div>
   );
 
-  const { upCount, downCount, upPct } = portfolioStats(stocks);
-  const sortedByChange = sortByAbsChange(stocks);
+  const filtered = filter === "전체" ? stocks : stocks.filter((s) => s.market === filter);
+  const { upCount, downCount, upPct } = portfolioStats(filtered);
+  const sortedByChange = sortByAbsChange(filtered);
+
+  const portfolioLabel =
+    filter === "전체" ? "전체 포트폴리오" :
+    filter === "US" ? "🇺🇸 미국 종목" :
+    "🇰🇷 한국 종목";
 
   return (
     <div
@@ -99,6 +110,21 @@ export default function WatchlistPage() {
           </Link>
         </div>
 
+        {/* Market filter pills */}
+        <div className="flex gap-1.5 px-5 pt-2 pb-1">
+          {(["전체", "US", "KR"] as const).map((f) => (
+            <button key={f} onClick={() => setFilter(f)}
+              className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-bold border"
+              style={{
+                background: filter === f ? "var(--accent-soft)" : "var(--bg-3)",
+                color: filter === f ? "var(--accent)" : "var(--text-2)",
+                borderColor: filter === f ? "var(--accent-ring)" : "var(--line)",
+              }}>
+              {f === "전체" ? "전체" : f === "US" ? "🇺🇸 미국" : "🇰🇷 한국"}
+            </button>
+          ))}
+        </div>
+
         {/* Portfolio summary card */}
         <div className="mx-4 mt-3.5">
           <div
@@ -113,7 +139,7 @@ export default function WatchlistPage() {
               className="text-[11px] uppercase tracking-widest font-semibold"
               style={{ color: "var(--text-3)" }}
             >
-              오늘의 내 포트폴리오
+              {portfolioLabel}
             </p>
 
             <div className="flex items-baseline gap-2 mt-2">
@@ -127,7 +153,7 @@ export default function WatchlistPage() {
                 className="text-xs"
                 style={{ color: "var(--text-2)" }}
               >
-                평균 · {stocks.length}종목
+                평균 · {filtered.length}종목
               </span>
             </div>
 
@@ -190,7 +216,7 @@ export default function WatchlistPage() {
 
           {/* 4-column heatmap grid */}
           <div className="grid grid-cols-4 gap-1.5 px-4">
-            {stocks.map((s) => (
+            {filtered.map((s) => (
               <Link
                 key={s.ticker}
                 href={`/report/${s.ticker}`}
@@ -279,13 +305,14 @@ export default function WatchlistPage() {
                     className="font-mono text-sm font-bold"
                     style={{ color: "var(--text-0)" }}
                   >
-                    {s.ticker}
+                    {s.market === "US" ? "🇺🇸" : "🇰🇷"}{" "}
+                    {s.market === "KR" ? s.nameKo : s.ticker}
                   </div>
                   <div
                     className="text-[11px] truncate"
                     style={{ color: "var(--text-2)" }}
                   >
-                    {s.nameKo}
+                    {s.market === "KR" ? s.ticker : s.nameKo}
                   </div>
                 </div>
 
@@ -296,7 +323,7 @@ export default function WatchlistPage() {
                     className="font-mono text-sm font-semibold"
                     style={{ color: "var(--text-0)" }}
                   >
-                    {formatPrice(s.price)}
+                    {formatPrice(s.price, s.currency)}
                   </div>
                   <div
                     className="font-mono text-[11px] font-semibold"

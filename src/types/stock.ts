@@ -1,10 +1,14 @@
 export type TimeRange = "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
 
+export type MarketCode = "US" | "KR";
+
 export interface Stock {
   ticker: string;
   name: string;
   nameKo: string;
+  market: MarketCode;
   exchange: string;
+  currency: "USD" | "KRW";
   sector: string;
   price: number;
   change: number;
@@ -33,8 +37,16 @@ export interface EventItem {
   important: boolean;
 }
 
-export interface BriefingData {
-  date: string;
+export interface Cause {
+  rank: number;
+  title: string;
+  desc: string;
+  tags: string[];
+}
+
+export interface MarketBriefing {
+  market: MarketCode;
+  dateLabel: string;
   headline: string;
   headlineAccent: string;
   indices: MarketIndex[];
@@ -47,13 +59,13 @@ export interface BriefingData {
   movers: (Stock & { reason: string })[];
   macros: MacroItem[];
   events: EventItem[];
+  causes: Cause[];
 }
 
-export interface Cause {
-  rank: number;
-  title: string;
-  desc: string;
-  tags: string[];
+export interface BriefingData {
+  generatedAt: string;
+  us: MarketBriefing;
+  kr: MarketBriefing;
 }
 
 export interface NewsItem {

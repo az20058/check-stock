@@ -44,7 +44,7 @@ export async function callClaudeJson<T>(opts: {
     messages: [{ role: "user", content: opts.user }],
   });
 
-  const toolUse = res.content.find((c) => c.type === "tool_use");
+  const toolUse = res.content.find((c: { type: string }) => c.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
     throw new Error("Claude did not return tool_use block");
   }

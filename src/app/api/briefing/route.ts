@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { fetchQuotes } from "@/lib/clients/finnhub";
+import { fetchYahooQuotes, toYahooSymbol, KR_INDEX_SYMBOLS } from "@/lib/clients/yahoo";
 import { getLatestSnapshot } from "@/lib/briefing/storage";
-import { getStockMeta } from "@/lib/data/stock-meta";
-import type { BriefingData, MarketIndex } from "@/types/stock";
-import { MOVER_TICKERS } from "@/lib/briefing/build";
+import { getStockMeta, inferMarket } from "@/lib/data/stock-meta";
+import type { BriefingData, MarketBriefing, MarketIndex } from "@/types/stock";
+import { US_MOVER_TICKERS, KR_MOVER_TICKERS } from "@/lib/briefing/build";
 
-const indexSymbolMap: { label: string; symbol: string }[] = [
-  { label: "SPY", symbol: "SPY" },
-  { label: "QQQ", symbol: "QQQ" },
-  { label: "DIA", symbol: "DIA" },
+const US_INDEX_SYMBOLS: { label: string; symbol: string }[] = [
+  { label: "S&P 500", symbol: "SPY" },
+  { label: "NASDAQ", symbol: "QQQ" },
+  { label: "DOW", symbol: "DIA" },
   { label: "VIX", symbol: "^VIX" },
 ];
 
@@ -25,29 +26,46 @@ export async function GET() {
 
   const snap = snapshot.briefing_data;
 
-  // 실시간 시세 오버레이
-  const symbols = [
-    ...indexSymbolMap.map((x) => x.symbol),
-    ...MOVER_TICKERS,
+  // 실시간 시세 조회 (US + KR 동시)
+  const usSymbols = [...US_INDEX_SYMBOLS.map((x) => x.symbol), ...US_MOVER_TICKERS];
+  const krSymbols = [
+    ...KR_INDEX_SYMBOLS.map((x) => x.symbol),
+    ...KR_MOVER_TICKERS.map((t) => toYahooSymbol(t, getStockMeta(t)?.exchange)),
   ];
 
-  let quotes: Awaited<ReturnType<typeof fetchQuotes>> = [];
-  try {
-    quotes = await fetchQuotes(symbols);
-  } catch {
-    // 시세 조회 실패 시 스냅샷 데이터만 사용
-  }
+  let usQuotes: Awaited<ReturnType<typeof fetchQuotes>> = [];
+  let krQuotes: Awaited<ReturnType<typeof fetchYahooQuotes>> = [];
 
-  const bySymbol = new Map(quotes.map((q) => [q.symbol, q]));
+  await Promise.all([
+    fetchQuotes(usSymbols)
+      .then((q) => { usQuotes = q; })
+      .catch(() => {}),
+    fetchYahooQuotes(krSymbols)
+      .then((q) => { krQuotes = q; })
+      .catch(() => {}),
+  ]);
 
-  const indices: MarketIndex[] = indexSymbolMap.map(({ label, symbol }) => {
-    const q = bySymbol.get(symbol);
+  const byUsSymbol = new Map(usQuotes.map((q) => [q.symbol, q]));
+  const byKrSymbol = new Map(krQuotes.map((q) => [q.symbol, q]));
+
+  // US 인덱스
+  const usIndices: MarketIndex[] = US_INDEX_SYMBOLS.map(({ label, symbol }) => {
+    const q = byUsSymbol.get(symbol);
     return { label, value: q?.c ?? 0, changePct: q?.dp ?? 0 };
   });
 
-  const movers = snap.movers.map((m) => {
-    const q = bySymbol.get(m.ticker);
+  // KR 인덱스
+  const krIndices: MarketIndex[] = KR_INDEX_SYMBOLS.map(({ label, symbol }) => {
+    const q = byKrSymbol.get(symbol);
+    return { label, value: q?.c ?? 0, changePct: q?.dp ?? 0 };
+  });
+
+  // US 무버
+  const usMovers = snap.us.movers.map((m) => {
+    const q = byUsSymbol.get(m.ticker);
     const meta = getStockMeta(m.ticker);
+    const market = meta?.market ?? inferMarket(m.ticker);
+    const currency = meta?.currency ?? "USD";
     const price = q?.c ?? 0;
     const changePct = q?.dp ?? 0;
     const change = price - price / (1 + changePct / 100);
@@ -55,7 +73,9 @@ export async function GET() {
       ticker: m.ticker,
       name: meta?.nameKo ?? m.ticker,
       nameKo: meta?.nameKo ?? m.ticker,
-      exchange: "",
+      market,
+      exchange: meta?.exchange ?? "",
+      currency,
       sector: meta?.sector ?? "",
       price,
       change,
@@ -65,15 +85,62 @@ export async function GET() {
     };
   });
 
+  // KR 무버
+  const krMovers = snap.kr.movers.map((m) => {
+    const meta = getStockMeta(m.ticker);
+    const market = meta?.market ?? inferMarket(m.ticker);
+    const currency = meta?.currency ?? "KRW";
+    const yahooSym = toYahooSymbol(m.ticker, meta?.exchange);
+    const q = byKrSymbol.get(yahooSym);
+    const price = q?.c ?? 0;
+    const changePct = q?.dp ?? 0;
+    const change = price - price / (1 + changePct / 100);
+    return {
+      ticker: m.ticker,
+      name: meta?.nameKo ?? m.ticker,
+      nameKo: meta?.nameKo ?? m.ticker,
+      market,
+      exchange: meta?.exchange ?? "",
+      currency,
+      sector: meta?.sector ?? "",
+      price,
+      change,
+      changePct,
+      sparkline: [] as number[],
+      reason: m.reason,
+    };
+  });
+
+  const usBriefing: MarketBriefing = {
+    market: "US",
+    dateLabel: snap.us.dateLabel ?? "",
+    headline: snap.us.headline ?? "",
+    headlineAccent: snap.us.headlineAccent ?? "",
+    indices: usIndices,
+    summary: snap.us.summary ?? { title: "", body: "", sub: "", tags: [] },
+    movers: usMovers,
+    macros: snap.us.macros?.length ? snap.us.macros : [],
+    events: snap.us.events?.length ? snap.us.events : [],
+    causes: snap.us.causes ?? [],
+  };
+
+  const krBriefing: MarketBriefing = {
+    market: "KR",
+    dateLabel: snap.kr.dateLabel ?? "",
+    headline: snap.kr.headline ?? "",
+    headlineAccent: snap.kr.headlineAccent ?? "",
+    indices: krIndices,
+    summary: snap.kr.summary ?? { title: "", body: "", sub: "", tags: [] },
+    movers: krMovers,
+    macros: snap.kr.macros?.length ? snap.kr.macros : [],
+    events: [],
+    causes: snap.kr.causes ?? [],
+  };
+
   const briefing: BriefingData = {
-    date: snap.date ?? "",
-    headline: snap.headline ?? "",
-    headlineAccent: snap.headlineAccent ?? "",
-    indices,
-    summary: snap.summary ?? { title: "", body: "", sub: "", tags: [] },
-    movers,
-    macros: snap.macros?.length ? snap.macros : [],
-    events: snap.events?.length ? snap.events : [],
+    generatedAt: snapshot.started_at,
+    us: usBriefing,
+    kr: krBriefing,
   };
 
   return NextResponse.json(briefing);

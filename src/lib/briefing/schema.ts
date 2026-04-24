@@ -3,13 +3,19 @@ import { z } from "zod";
 export const marketSummarySchema = z.object({
   headline: z.string().min(1),
   headlineAccent: z.string().min(1),
-  date: z.string().min(1),
+  dateLabel: z.string().min(1),
   summary: z.object({
     title: z.string().min(1),
     body: z.string().min(1),
     sub: z.string().min(1),
     tags: z.array(z.string()).min(1).max(4),
   }),
+  causes: z.array(z.object({
+    rank: z.number().int().min(1).max(3),
+    title: z.string().min(1),
+    desc: z.string().min(1),
+    tags: z.array(z.string()).max(3),
+  })).length(3),
 });
 export type MarketSummary = z.infer<typeof marketSummarySchema>;
 
@@ -38,7 +44,7 @@ export const marketSummaryJsonSchema = {
   properties: {
     headline: { type: "string", description: "브리핑 전체 제목의 꼬리말. 예: '이유를 정리했어요'" },
     headlineAccent: { type: "string", description: "제목의 강조 부분. 예: '나스닥이 흔들린'" },
-    date: { type: "string", description: "오늘 날짜·시장 상태. 예: '4월 24일 금요일 · 장마감 04:00 ET'" },
+    dateLabel: { type: "string", description: "오늘 날짜·시장 상태. 예: '4월 24일 금요일 · 장마감 04:00 ET' 또는 '4월 24일 금요일 · 장마감 15:30 KST'" },
     summary: {
       type: "object",
       properties: {
@@ -54,8 +60,28 @@ export const marketSummaryJsonSchema = {
       },
       required: ["title", "body", "sub", "tags"],
     },
+    causes: {
+      type: "array",
+      description: "오늘 시장을 움직인 TOP 3 원인",
+      items: {
+        type: "object",
+        properties: {
+          rank: { type: "number", description: "1~3" },
+          title: { type: "string", description: "원인 제목 (15~25자)" },
+          desc: { type: "string", description: "원인 설명 (30~60자)" },
+          tags: {
+            type: "array",
+            items: { type: "string", description: "# 접두사 포함 해시태그" },
+            maxItems: 3,
+          },
+        },
+        required: ["rank", "title", "desc", "tags"],
+      },
+      minItems: 3,
+      maxItems: 3,
+    },
   },
-  required: ["headline", "headlineAccent", "date", "summary"],
+  required: ["headline", "headlineAccent", "dateLabel", "summary", "causes"],
 } as const;
 
 export const moverReasonJsonSchema = {

@@ -13,6 +13,14 @@ export interface RawSources {
   economicEvents: EconomicEvent[];
 }
 
+/** KR 시장 전용 수집 소스 */
+export interface KrRawSources {
+  collectedAt: string;
+  koreanMarketNews: KoreanNewsItem[];
+  companyNews: Record<string, CompanyNewsItem[]>;
+  macros: MacroItem[];
+}
+
 export interface TokenUsage {
   input: number;
   output: number;

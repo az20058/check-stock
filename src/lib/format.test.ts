@@ -47,8 +47,9 @@ describe("formatPrice (P1)", () => {
     expect(formatPrice(-0.5)).toBe("$-0.50");
   });
 
-  it("자릿수 옵션이 반영된다", () => {
-    expect(formatPrice(10.2345, 4)).toBe("$10.2345");
+  it("KRW 포맷은 원 단위로 표시한다", () => {
+    expect(formatPrice(76200, "KRW")).toBe("76,200원");
+    expect(formatPrice(0, "KRW")).toBe("0원");
   });
 });
 

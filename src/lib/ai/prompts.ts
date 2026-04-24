@@ -52,7 +52,52 @@ ${koreanNewsLines || "(한국 뉴스 없음)"}
 - headlineAccent: 오늘의 핵심 주제 (예: '나스닥이 흔들린')
 - summary.body: 오늘 시장을 움직인 가장 큰 이유 한 문장
 - summary.sub: 보조 맥락 1~2문장 (섹터 반응, 한국 투자자 시각 등)
-- tags: 3~4개의 해시태그 (#금리, #반도체 등)`;
+- tags: 3~4개의 해시태그 (#금리, #반도체 등)
+- causes: 오늘 시장을 움직인 TOP 3 원인. 각 원인마다 rank(1~3), title(15~25자), desc(30~60자), tags(최대 3개) 포함`;
+}
+
+export const krMarketSummarySystem = `너는 한국어로 한국 주식시장을 설명하는 애널리스트다.
+
+[핵심 원칙]
+- 반드시 오늘(당일) 코스피·코스닥 시장에서 실제로 일어난 일만 다룬다.
+- 외국인 수급, 기관 동향, 원달러 환율 변화를 핵심 관점으로 분석한다.
+- 주어진 뉴스와 데이터에 근거해서만 답한다. 추측·예측·일반론은 절대 쓰지 않는다.
+- "~할 수 있다", "~가 예상된다" 같은 모호한 표현 대신, "~했다", "~로 나타났다" 같은 사실 기반 표현을 쓴다.
+- 개인 투자자가 5초 안에 이해할 수 있게 핵심만 간결하게 정리한다.
+- 전문 용어는 피하고, 숫자는 맥락(왜 이 숫자가 중요한가)과 함께 제시한다.
+- 한국어로만 답한다.`.trim();
+
+export function buildKrMarketSummaryUser(args: {
+  koreanMarketNews: KoreanNewsItem[];
+  macros: MacroItem[];
+  dateLabel: string;
+}): string {
+  const newsLines = args.koreanMarketNews
+    .slice(0, 15)
+    .map((n, i) => `${i + 1}. [${n.source}] ${n.title}`)
+    .join("\n");
+
+  const macroLines = args.macros
+    .map((m) => `- ${m.label}: ${m.value} (${m.delta})`)
+    .join("\n");
+
+  return `오늘은 ${args.dateLabel}.
+
+[매크로 변화]
+${macroLines || "(수집 실패)"}
+
+[한국 시장 뉴스 헤드라인]
+${newsLines || "(뉴스 없음)"}
+
+위 정보를 바탕으로 오늘 코스피·코스닥 장의 핵심 스토리를 요약하라.
+코스피·코스닥 지수 흐름, 외국인 수급, 원달러 환율을 중심으로 분석하라.
+중요: 반드시 오늘 실제로 일어난 사건과 수치만 언급하라. 과거 이야기나 미래 예측은 쓰지 마라.
+- headline: 브리핑 제목 꼬리말 (5~10자)
+- headlineAccent: 오늘의 핵심 주제 (예: '코스피가 반등한')
+- summary.body: 오늘 시장을 움직인 가장 큰 이유 한 문장
+- summary.sub: 보조 맥락 1~2문장 (외국인 수급, 환율 영향 등)
+- tags: 3~4개의 해시태그 (#코스피, #외국인수급 등)
+- causes: 오늘 시장을 움직인 TOP 3 원인. 각 원인마다 rank(1~3), title(15~25자), desc(30~60자), tags(최대 3개) 포함`;
 }
 
 export const moverReasonSystem = `너는 한국어 증권 리서치 애널리스트다.

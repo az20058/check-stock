@@ -9,21 +9,23 @@ export default function SnapshotPreview({ run }: { run: BriefingRun | null }) {
     );
   }
   const d = run.briefing_data;
+  // US 브리핑 데이터를 미리보기에 사용
+  const us = d.us;
   return (
     <div className="rounded-md border border-gray-700 p-4 space-y-4">
       <div>
-        <p className="text-xs uppercase text-gray-500 mb-1">HEADLINE</p>
+        <p className="text-xs uppercase text-gray-500 mb-1">HEADLINE (US)</p>
         <p className="text-lg font-semibold text-white">
-          <span className="text-blue-400">{d.headlineAccent}</span> {d.headline}
+          <span className="text-blue-400">{us.headlineAccent}</span> {us.headline}
         </p>
-        <p className="text-xs text-gray-500 mt-1">{d.date}</p>
+        <p className="text-xs text-gray-500 mt-1">{us.dateLabel}</p>
       </div>
       <div>
-        <p className="text-xs uppercase text-gray-500 mb-1">{d.summary?.title ?? "요약"}</p>
-        <p className="text-sm text-gray-200">{d.summary?.body}</p>
-        <p className="text-xs text-gray-400 mt-1">{d.summary?.sub}</p>
+        <p className="text-xs uppercase text-gray-500 mb-1">{us.summary?.title ?? "요약"}</p>
+        <p className="text-sm text-gray-200">{us.summary?.body}</p>
+        <p className="text-xs text-gray-400 mt-1">{us.summary?.sub}</p>
         <div className="flex gap-2 mt-2">
-          {d.summary?.tags?.map((t) => (
+          {us.summary?.tags?.map((t: string) => (
             <span key={t} className="text-xs rounded bg-gray-800 px-2 py-1 text-gray-300">
               {t}
             </span>
@@ -33,7 +35,7 @@ export default function SnapshotPreview({ run }: { run: BriefingRun | null }) {
       <div>
         <p className="text-xs uppercase text-gray-500 mb-2">MOVERS</p>
         <ul className="space-y-1">
-          {d.movers?.map((m) => (
+          {us.movers?.map((m: { ticker: string; reason: string }) => (
             <li key={m.ticker} className="text-sm">
               <span className="font-mono text-gray-300">{m.ticker}</span>
               <span className="text-gray-500 mx-2">·</span>
@@ -42,11 +44,11 @@ export default function SnapshotPreview({ run }: { run: BriefingRun | null }) {
           ))}
         </ul>
       </div>
-      {d.events && d.events.length > 0 && (
+      {us.events && us.events.length > 0 && (
         <div>
           <p className="text-xs uppercase text-gray-500 mb-2">EVENTS</p>
           <ul className="space-y-1">
-            {d.events.map((e, i) => (
+            {us.events.map((e: { time: string; title: string; desc: string }, i: number) => (
               <li key={i} className="text-sm">
                 <span className="text-gray-400">{e.time}</span>
                 <span className="text-gray-500 mx-2">·</span>

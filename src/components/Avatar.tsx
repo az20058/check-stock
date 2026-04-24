@@ -1,8 +1,9 @@
 "use client";
 
+import { avatarHue } from "@/lib/chart";
+
 export default function Avatar({ ticker, size = "md" }: { ticker: string; size?: "md" | "lg" }) {
-  const hash = [...ticker].reduce((a, c) => a + c.charCodeAt(0), 0);
-  const hue = (hash * 47) % 360;
+  const hue = avatarHue(ticker);
 
   const sizeClasses = size === "lg"
     ? "w-11 h-11 rounded-xl text-[13px]"

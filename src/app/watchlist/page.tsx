@@ -6,20 +6,8 @@ import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import Sparkline from "@/components/Sparkline";
 import { useWatchlist } from "@/hooks/queries";
-
-function formatPct(pct: number): string {
-  return (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%";
-}
-
-function heatmapBg(pct: number): string {
-  const abs = Math.abs(pct);
-  const intensity = Math.min(abs / 5, 1);
-  const alpha = 0.12 + intensity * 0.35;
-  if (pct >= 0) {
-    return `rgba(255,84,102,${alpha.toFixed(2)})`;
-  }
-  return `rgba(59,130,246,${alpha.toFixed(2)})`;
-}
+import { formatPct, formatPrice } from "@/lib/format";
+import { heatmapBg, portfolioStats, sortByAbsChange } from "@/lib/portfolio";
 
 export default function WatchlistPage() {
   const { data, isLoading, isError } = useWatchlist();
@@ -49,11 +37,8 @@ export default function WatchlistPage() {
 
   const { stocks, mostMentioned } = data;
 
-  const upCount = stocks.filter((s) => s.changePct >= 0).length;
-  const downCount = stocks.filter((s) => s.changePct < 0).length;
-  const upPct = stocks.length > 0 ? Math.round((upCount / stocks.length) * 100) : 0;
-
-  const sortedByChange = [...stocks].sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
+  const { upCount, downCount, upPct } = portfolioStats(stocks);
+  const sortedByChange = sortByAbsChange(stocks);
 
   return (
     <div
@@ -296,7 +281,7 @@ export default function WatchlistPage() {
                     className="font-mono text-sm font-semibold"
                     style={{ color: "var(--text-0)" }}
                   >
-                    {"$" + s.price.toFixed(2)}
+                    {formatPrice(s.price)}
                   </div>
                   <div
                     className="font-mono text-[11px] font-semibold"

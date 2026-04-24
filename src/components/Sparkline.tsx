@@ -1,15 +1,14 @@
 "use client";
 
+import { normalizeChartPoints, pointsToPath } from "@/lib/chart";
+
 export default function Sparkline({
   data, up = false, width = 72, height = 28, stroke = 2,
 }: {
   data: number[]; up?: boolean; width?: number; height?: number; stroke?: number;
 }) {
-  const min = Math.min(...data), max = Math.max(...data);
-  const range = max - min || 1;
-  const stepX = width / (data.length - 1);
-  const pts = data.map((v, i) => [i * stepX, height - ((v - min) / range) * height]);
-  const d = pts.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const pts = normalizeChartPoints(data, { width, height });
+  const d = pointsToPath(pts);
   const areaD = d + ` L ${width} ${height} L 0 ${height} Z`;
   const color = up ? "var(--up)" : "var(--down)";
   const fill = up ? "var(--up-soft)" : "var(--down-soft)";

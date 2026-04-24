@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useStockReport, useWatchlist, useToggleWatchlist } from "@/hooks/queries";
 import type { TimeRange } from "@/types/stock";
+import { isWatched } from "@/lib/portfolio";
 import StatusBar from "@/components/StatusBar";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
@@ -21,7 +22,7 @@ export default function ReportPage() {
   const { add, remove } = useToggleWatchlist();
   const [range, setRange] = useState<TimeRange>("1D");
 
-  const isWatched = watchlistData?.stocks.some((s) => s.ticker === ticker) ?? false;
+  const watched = isWatched(watchlistData?.stocks, ticker);
 
   if (isLoading) {
     return (
@@ -104,10 +105,10 @@ export default function ReportPage() {
           <button
             className="w-9 h-9 rounded-xl flex items-center justify-center border"
             style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
-            aria-label={isWatched ? "관심종목 제거" : "관심종목 추가"}
-            onClick={() => isWatched ? remove.mutate(ticker) : add.mutate(ticker)}
+            aria-label={watched ? "관심종목 제거" : "관심종목 추가"}
+            onClick={() => watched ? remove.mutate(ticker) : add.mutate(ticker)}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill={isWatched ? "var(--accent)" : "none"} stroke={isWatched ? "none" : "var(--text-2)"} strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill={watched ? "var(--accent)" : "none"} stroke={watched ? "none" : "var(--text-2)"} strokeWidth="2">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
           </button>

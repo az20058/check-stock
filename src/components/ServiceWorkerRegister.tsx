@@ -8,8 +8,11 @@ export default function ServiceWorkerRegister() {
 
     if (process.env.NODE_ENV !== "production") {
       navigator.serviceWorker.getRegistrations().then(async (regs) => {
-        if (regs.length === 0) return;
-        await Promise.all(regs.map((r) => r.unregister()));
+        const stale = regs.filter(
+          (r) => !r.active?.scriptURL.includes("mockServiceWorker"),
+        );
+        if (stale.length === 0) return;
+        await Promise.all(stale.map((r) => r.unregister()));
         window.location.reload();
       });
       return;

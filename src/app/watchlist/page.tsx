@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import StatusBar from "@/components/StatusBar";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import Sparkline from "@/components/Sparkline";
@@ -14,8 +13,7 @@ export default function WatchlistPage() {
 
   if (isLoading) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-      <StatusBar time="--:--" />
-      <div className="overflow-y-auto h-full pt-[54px] pb-[96px] px-4 space-y-4">
+      <div className="overflow-y-auto h-full pt-3 pb-[96px] px-4 space-y-4">
         <div className="h-20 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
         <div className="h-32 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
         <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
@@ -27,7 +25,6 @@ export default function WatchlistPage() {
 
   if (isError || !data) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-      <StatusBar time="--:--" />
       <div className="flex items-center justify-center h-full">
         <p className="text-sm" style={{ color: "var(--text-2)" }}>데이터를 불러오지 못했습니다.</p>
       </div>
@@ -45,10 +42,8 @@ export default function WatchlistPage() {
       className="relative h-dvh overflow-hidden"
       style={{ background: "var(--bg-1)" }}
     >
-      <StatusBar time="9:14" />
-
       {/* Scrollable content */}
-      <div className="overflow-y-auto h-full pt-[54px] pb-[96px]">
+      <div className="overflow-y-auto h-full pt-3 pb-[96px]">
 
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-2">

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import StatusBar from "@/components/StatusBar";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import Sparkline from "@/components/Sparkline";
@@ -12,8 +11,7 @@ export default function Home() {
 
   if (isLoading) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-      <StatusBar time="--:--" />
-      <div className="overflow-y-auto h-full pt-[54px] pb-[96px] px-4 space-y-4">
+      <div className="overflow-y-auto h-full pt-3 pb-[96px] px-4 space-y-4">
         <div className="h-16 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
         <div className="h-24 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
         <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
@@ -39,10 +37,8 @@ export default function Home() {
       className="relative h-dvh overflow-hidden"
       style={{ background: "var(--bg-1)" }}
     >
-      <StatusBar time="8:30" />
-
       {/* Scrollable content */}
-      <div className="overflow-y-auto h-full pt-[54px] pb-[96px]">
+      <div className="overflow-y-auto h-full pt-3 pb-[96px]">
 
         {/* Hero greeting */}
         <div style={{ padding: "14px 20px 6px" }}>

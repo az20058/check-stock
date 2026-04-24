@@ -7,10 +7,10 @@ export default function ServiceWorkerRegister() {
     if (!("serviceWorker" in navigator)) return;
 
     if (process.env.NODE_ENV !== "production") {
-      navigator.serviceWorker.getRegistrations().then((regs) => {
-        regs
-          .filter((r) => !r.active?.scriptURL.includes("mockServiceWorker"))
-          .forEach((r) => r.unregister());
+      navigator.serviceWorker.getRegistrations().then(async (regs) => {
+        if (regs.length === 0) return;
+        await Promise.all(regs.map((r) => r.unregister()));
+        window.location.reload();
       });
       return;
     }

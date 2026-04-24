@@ -24,7 +24,15 @@ export async function GET() {
     );
   }
 
-  const snap = snapshot.briefing_data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawSnap = snapshot.briefing_data as any;
+
+  // v1→v2 어댑터: 기존 flat 스냅샷이면 us에 넣고 kr은 빈 구조로
+  const isV1 = !rawSnap.us && rawSnap.movers;
+  const emptyMarket = { movers: [], dateLabel: "", headline: "", headlineAccent: "", summary: { title: "", body: "", sub: "", tags: [] }, macros: [], events: [], causes: [] };
+  const snap = isV1
+    ? { us: rawSnap, kr: emptyMarket }
+    : { us: rawSnap.us ?? emptyMarket, kr: rawSnap.kr ?? emptyMarket };
 
   // 실시간 시세 조회 (US + KR 동시)
   const usSymbols = [...US_INDEX_SYMBOLS.map((x) => x.symbol), ...US_MOVER_TICKERS];
@@ -61,7 +69,7 @@ export async function GET() {
   });
 
   // US 무버
-  const usMovers = snap.us.movers.map((m) => {
+  const usMovers = ((snap.us.movers ?? []) as { ticker: string; reason: string }[]).map((m) => {
     const q = byUsSymbol.get(m.ticker);
     const meta = getStockMeta(m.ticker);
     const market = meta?.market ?? inferMarket(m.ticker);
@@ -86,7 +94,7 @@ export async function GET() {
   });
 
   // KR 무버
-  const krMovers = snap.kr.movers.map((m) => {
+  const krMovers = ((snap.kr.movers ?? []) as { ticker: string; reason: string }[]).map((m) => {
     const meta = getStockMeta(m.ticker);
     const market = meta?.market ?? inferMarket(m.ticker);
     const currency = meta?.currency ?? "KRW";
@@ -113,9 +121,9 @@ export async function GET() {
 
   const usBriefing: MarketBriefing = {
     market: "US",
-    dateLabel: snap.us.dateLabel ?? "",
-    headline: snap.us.headline ?? "",
-    headlineAccent: snap.us.headlineAccent ?? "",
+    dateLabel: (snap.us.dateLabel ?? snap.us.date ?? "") as string,
+    headline: (snap.us.headline ?? "") as string,
+    headlineAccent: (snap.us.headlineAccent ?? "") as string,
     indices: usIndices,
     summary: snap.us.summary ?? { title: "", body: "", sub: "", tags: [] },
     movers: usMovers,

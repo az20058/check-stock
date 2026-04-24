@@ -72,17 +72,34 @@ export async function failRun(runId: string, err: unknown): Promise<void> {
 }
 
 export async function getLatestSnapshot(
-  session: import("@/types/stock").BriefingSession,
+  session?: import("@/types/stock").BriefingSession,
 ): Promise<BriefingRun | null> {
   const supa = getServerClient();
-  const { data, error } = await supa
+  let query = supa
     .from(TABLE)
     .select("*")
-    .eq("session", session)
     .in("status", ["success", "partial"])
     .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+
+  if (session) {
+    query = query.eq("session", session);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  // session 컬럼이 아직 없는 경우 (마이그레이션 전) fallback
+  if (error && session) {
+    const { data: fallback } = await supa
+      .from(TABLE)
+      .select("*")
+      .in("status", ["success", "partial"])
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return (fallback as BriefingRun | null) ?? null;
+  }
+
   if (error) return null;
   return (data as BriefingRun | null) ?? null;
 }

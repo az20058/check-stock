@@ -24,12 +24,21 @@ function resolveCurrentSessions(): { us: BriefingSession; kr: BriefingSession } 
 }
 
 export async function GET() {
+  try {
   const sessions = resolveCurrentSessions();
 
-  const [usSnapshot, krSnapshot] = await Promise.all([
-    getLatestSnapshot(sessions.us),
-    getLatestSnapshot(sessions.kr),
-  ]);
+  let usSnapshot: Awaited<ReturnType<typeof getLatestSnapshot>> = null;
+  let krSnapshot: Awaited<ReturnType<typeof getLatestSnapshot>> = null;
+
+  try {
+    [usSnapshot, krSnapshot] = await Promise.all([
+      getLatestSnapshot(sessions.us),
+      getLatestSnapshot(sessions.kr),
+    ]);
+  } catch {
+    // session 컬럼 마이그레이션 전 — session 없이 최신 스냅샷 조회
+    usSnapshot = await getLatestSnapshot();
+  }
 
   if (!usSnapshot?.briefing_data && !krSnapshot?.briefing_data) {
     return NextResponse.json(
@@ -172,4 +181,11 @@ export async function GET() {
   };
 
   return NextResponse.json(briefing);
+  } catch (err) {
+    console.error("[/api/briefing] error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "unknown error" },
+      { status: 500 },
+    );
+  }
 }

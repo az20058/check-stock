@@ -72,6 +72,7 @@ export interface NewsItem {
   source: string;
   title: string;
   time: string;
+  lang: "en" | "ko";
 }
 
 export interface SectorComparison {

@@ -1,6 +1,7 @@
 import "server-only";
 import { fetchQuotes } from "@/lib/clients/finnhub";
 import { fetchCompanyNews } from "@/lib/collectors/company-news";
+import { fetchKoreanNews } from "@/lib/collectors/korean-news";
 import { fetchMacros } from "@/lib/collectors/macros";
 import { fetchAllCandles } from "@/lib/clients/finnhub-candles";
 import { callClaudeJson } from "@/lib/clients/anthropic";
@@ -59,15 +60,20 @@ export async function generateReport(ticker: string): Promise<StockReport> {
   const upperTicker = ticker.toUpperCase();
   const meta = getStockMeta(upperTicker);
 
-  const [quotesRes, newsRes, macrosRes, candlesRes] = await Promise.allSettled([
+  const nameKo = meta?.nameKo ?? upperTicker;
+  const koreanQuery = nameKo !== upperTicker ? nameKo : undefined;
+
+  const [quotesRes, newsRes, koreanNewsRes, macrosRes, candlesRes] = await Promise.allSettled([
     fetchQuotes([upperTicker]),
     fetchCompanyNews(upperTicker, 6),
+    koreanQuery ? fetchKoreanNews(6) : Promise.resolve([]),
     fetchMacros(),
     fetchAllCandles(upperTicker),
   ]);
 
   const quotes = quotesRes.status === "fulfilled" ? quotesRes.value : [];
   const companyNews = newsRes.status === "fulfilled" ? newsRes.value : [];
+  const koreanNews = koreanNewsRes.status === "fulfilled" ? koreanNewsRes.value : [];
   const macros = macrosRes.status === "fulfilled" ? macrosRes.value : [];
   const chartData =
     candlesRes.status === "fulfilled"
@@ -128,14 +134,31 @@ ${macros.map((m) => `- ${m.label}: ${m.value} (${m.delta})`).join("\n") || "(없
     maxTokens: 1000,
   });
 
-  const newsItems: NewsItem[] = companyNews.slice(0, 4).map((n) => {
+  const enNews: NewsItem[] = companyNews.slice(0, 4).map((n) => {
     const ago = Math.round((Date.now() / 1000 - n.datetime) / 3600);
     return {
       source: n.source.toUpperCase(),
       title: n.headline,
       time: ago > 0 ? `${ago}시간 전` : "방금",
+      lang: "en",
     };
   });
+
+  const koNews: NewsItem[] = koreanNews
+    .filter((n) => nameKo !== upperTicker && n.title.includes(nameKo))
+    .slice(0, 4)
+    .map((n) => {
+      const pubMs = new Date(n.pubDate).getTime();
+      const ago = Math.round((Date.now() - pubMs) / 3600_000);
+      return {
+        source: n.source || "한국 뉴스",
+        title: n.title,
+        time: ago > 0 ? `${ago}시간 전` : "방금",
+        lang: "ko",
+      };
+    });
+
+  const newsItems: NewsItem[] = [...enNews, ...koNews];
 
   return {
     stock,

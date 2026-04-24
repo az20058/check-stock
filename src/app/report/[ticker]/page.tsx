@@ -4,13 +4,14 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useStockReport } from "@/hooks/queries";
 import { useLocalWatchlist } from "@/hooks/useLocalWatchlist";
-import type { TimeRange } from "@/types/stock";
+import type { TimeRange, NewsItem } from "@/types/stock";
 import { inferMarket } from "@/lib/data/stock-meta";
 import { formatPrice, formatChange } from "@/lib/format";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import PriceChart from "@/components/PriceChart";
 import Pct from "@/components/Pct";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const segments: TimeRange[] = ["1D", "1W", "1M", "3M", "1Y", "ALL"];
 
@@ -379,56 +380,7 @@ export default function ReportPage() {
               {news.length}건
             </span>
           </div>
-          <div
-            className="rounded-[20px] border"
-            style={{
-              background: "var(--bg-2)",
-              borderColor: "var(--line)",
-              padding: "0 16px",
-            }}
-          >
-            {news.map((item, i) => (
-              <div
-                key={`${item.source}-${item.time}`}
-                className="flex gap-2.5 py-3"
-                style={
-                  i > 0
-                    ? { borderTop: "1px solid var(--line)" }
-                    : {}
-                }
-              >
-                {/* Thumbnail placeholder with diagonal stripe */}
-                <div
-                  className="w-14 h-14 rounded-[10px] shrink-0"
-                  style={{
-                    background: "var(--bg-3)",
-                    backgroundImage:
-                      "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.03) 4px, rgba(255,255,255,0.03) 8px)",
-                  }}
-                />
-                <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
-                  <div
-                    className="text-[10px] uppercase tracking-wider font-semibold"
-                    style={{ color: "var(--text-3)" }}
-                  >
-                    {item.source}
-                  </div>
-                  <div
-                    className="text-[13px] font-semibold leading-snug"
-                    style={{ color: "var(--text-0)" }}
-                  >
-                    {item.title}
-                  </div>
-                  <div
-                    className="text-[11px]"
-                    style={{ color: "var(--text-3)" }}
-                  >
-                    {item.time}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <NewsTabs news={news} />
         </div>
 
         {/* 매크로 맥락 */}
@@ -484,5 +436,85 @@ export default function ReportPage() {
 
       <TabBar active="watch" />
     </div>
+  );
+}
+
+function NewsTabs({ news }: { news: NewsItem[] }) {
+  const overseas = news.filter((n) => n.lang === "en");
+  const domestic = news.filter((n) => n.lang === "ko");
+  const defaultTab = domestic.length > 0 ? "domestic" : "overseas";
+
+  const renderList = (items: typeof news) => {
+    if (items.length === 0) {
+      return (
+        <div
+          className="rounded-[20px] border py-8 text-center"
+          style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
+        >
+          <p className="text-sm" style={{ color: "var(--text-3)" }}>
+            관련 뉴스가 없습니다
+          </p>
+        </div>
+      );
+    }
+    return (
+      <div
+        className="rounded-[20px] border"
+        style={{
+          background: "var(--bg-2)",
+          borderColor: "var(--line)",
+          padding: "0 16px",
+        }}
+      >
+        {items.map((item, i) => (
+          <div
+            key={`${item.source}-${item.title}-${i}`}
+            className="flex gap-2.5 py-3"
+            style={i > 0 ? { borderTop: "1px solid var(--line)" } : {}}
+          >
+            <div
+              className="w-14 h-14 rounded-[10px] shrink-0"
+              style={{
+                background: "var(--bg-3)",
+                backgroundImage:
+                  "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.03) 4px, rgba(255,255,255,0.03) 8px)",
+              }}
+            />
+            <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+              <div
+                className="text-[10px] uppercase tracking-wider font-semibold"
+                style={{ color: "var(--text-3)" }}
+              >
+                {item.source}
+              </div>
+              <div
+                className="text-[13px] font-semibold leading-snug"
+                style={{ color: "var(--text-0)" }}
+              >
+                {item.title}
+              </div>
+              <div className="text-[11px]" style={{ color: "var(--text-3)" }}>
+                {item.time}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <Tabs defaultValue={defaultTab}>
+      <TabsList className="w-full mb-3">
+        <TabsTrigger value="overseas">
+          해외 {overseas.length > 0 && <span className="text-[11px] opacity-60">{overseas.length}</span>}
+        </TabsTrigger>
+        <TabsTrigger value="domestic">
+          국내 {domestic.length > 0 && <span className="text-[11px] opacity-60">{domestic.length}</span>}
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="overseas">{renderList(overseas)}</TabsContent>
+      <TabsContent value="domestic">{renderList(domestic)}</TabsContent>
+    </Tabs>
   );
 }

@@ -88,8 +88,11 @@ export async function getLatestSnapshot(
 
   const { data, error } = await query.maybeSingle();
 
-  // session 컬럼이 아직 없는 경우 (마이그레이션 전) fallback
-  if (error && session) {
+  // session 필터로 결과가 있으면 바로 반환
+  if (!error && data) return data as BriefingRun;
+
+  // session 필터로 매칭 안 됨 (컬럼 미존재 or 값 null) → session 없이 재시도
+  if (session) {
     const { data: fallback } = await supa
       .from(TABLE)
       .select("*")
@@ -100,8 +103,7 @@ export async function getLatestSnapshot(
     return (fallback as BriefingRun | null) ?? null;
   }
 
-  if (error) return null;
-  return (data as BriefingRun | null) ?? null;
+  return null;
 }
 
 export async function listRecentRuns(limit = 10): Promise<BriefingRun[]> {

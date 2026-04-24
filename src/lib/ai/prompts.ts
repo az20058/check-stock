@@ -151,3 +151,56 @@ ${lines}
 - tag: '중요' 또는 '이벤트'
 - important: impact가 high면 true`;
 }
+
+export const usPreMarketSystem = `너는 한국어로 미국 주식시장 프리뷰를 제공하는 애널리스트다.
+
+[핵심 원칙]
+- 오늘 밤 미국 장이 열리기 전, 한국 투자자가 주목해야 할 포인트를 정리한다.
+- 주어진 뉴스와 데이터에 근거해서만 답한다. 추측·예측·일반론은 절대 쓰지 않는다.
+- 프리마켓 동향, 예정된 경제 지표 발표, 실적 발표 일정 등 사전 정보를 중심으로 정리한다.
+- "~할 수 있다", "~가 예상된다" 같은 모호한 표현 대신, "~가 예정됐다", "~로 발표됐다" 같은 사실 기반 표현을 쓴다.
+- 개인 투자자가 5초 안에 이해할 수 있게 핵심만 간결하게 정리한다.
+- 한국어 뉴스와 영어 뉴스를 모두 참고하여, 한국 투자자 관점에서 가장 중요한 이슈를 중심으로 정리한다.
+- 전문 용어는 피하고, 숫자는 맥락(왜 이 숫자가 중요한가)과 함께 제시한다.
+- 한국어로만 답한다.`.trim();
+
+export function buildUsPreMarketUser(args: {
+  news: MarketNewsItem[];
+  koreanNews: KoreanNewsItem[];
+  macros: MacroItem[];
+  dateLabel: string;
+}): string {
+  const newsLines = args.news
+    .slice(0, 12)
+    .map((n, i) => `${i + 1}. [${n.source}] ${n.headline}`)
+    .join("\n");
+
+  const koreanNewsLines = args.koreanNews
+    .slice(0, 15)
+    .map((n, i) => `${i + 1}. [${n.source}] ${n.title}`)
+    .join("\n");
+
+  const macroLines = args.macros
+    .map((m) => `- ${m.label}: ${m.value} (${m.delta})`)
+    .join("\n");
+
+  return `오늘은 ${args.dateLabel}.
+
+[매크로 현황]
+${macroLines || "(수집 실패)"}
+
+[영문 주요 뉴스 헤드라인]
+${newsLines || "(뉴스 없음)"}
+
+[한국 금융 뉴스 헤드라인]
+${koreanNewsLines || "(한국 뉴스 없음)"}
+
+위 정보를 바탕으로 오늘 밤 미국 장에서 주목할 포인트를 정리하라.
+중요: 확인된 사실과 예정된 일정만 언급하라. 근거 없는 방향성 예측은 쓰지 마라.
+- headline: 브리핑 제목 꼬리말 (5~10자)
+- headlineAccent: 오늘의 핵심 주제 (예: '오늘 밤 주목할')
+- summary.body: 오늘 밤 미국 장에서 가장 주목할 포인트 한 문장
+- summary.sub: 보조 맥락 1~2문장 (프리마켓 동향, 주요 일정 등)
+- tags: 3~4개의 해시태그 (#프리마켓, #실적발표 등)
+- causes: 오늘 밤 주목할 TOP 3 포인트. 각각 rank(1~3), title(15~25자), desc(30~60자), tags(최대 3개) 포함`;
+}

@@ -109,8 +109,8 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
     const result = await runAiPipeline({ usSources, krSources, usMovers, krMovers, session });
 
     const status: "success" | "partial" =
-      (isUS && usSources.marketNews.length > 0 && usSources.macros.length > 0) ||
-      (isKR && krSources.koreanMarketNews.length > 0 && krSources.macros.length > 0)
+      (isUS && (usSources.marketNews.length > 0 && usSources.macros.length > 0)) ||
+      (isKR && (krSources.koreanMarketNews.length > 0 && krSources.macros.length > 0))
         ? "success" : "partial";
 
     await finishRun(runId, {

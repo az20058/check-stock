@@ -92,6 +92,12 @@ export async function runAiPipeline(args: {
   krMovers: MoverMeta[];
   session: BriefingSession;
 }): Promise<PipelineOutput> {
+  const emptyBriefing: MarketBriefingPipeline = {
+    dateLabel: "", headline: "", headlineAccent: "",
+    summary: { title: "", body: "", sub: "", tags: [] },
+    causes: [], movers: [], events: [], macros: [],
+  };
+
   const usage: TokenUsage = { input: 0, output: 0, calls: 0 };
   const addUsage = (u: { input: number; output: number }) => {
     usage.input += u.input;
@@ -152,12 +158,6 @@ export async function runAiPipeline(args: {
       events = eventsSchema.parse(evRes.data).events;
     } catch { events = []; }
 
-    const emptyBriefing: MarketBriefingPipeline = {
-      dateLabel: "", headline: "", headlineAccent: "",
-      summary: { title: "", body: "", sub: "", tags: [] },
-      causes: [], movers: [], events: [], macros: [],
-    };
-
     return {
       us: {
         dateLabel: usSummary.dateLabel,
@@ -197,12 +197,6 @@ export async function runAiPipeline(args: {
       runMoverReason(m, args.krSources.companyNews[m.ticker] ?? [], addUsage),
     ),
   );
-
-  const emptyBriefing: MarketBriefingPipeline = {
-    dateLabel: "", headline: "", headlineAccent: "",
-    summary: { title: "", body: "", sub: "", tags: [] },
-    causes: [], movers: [], events: [], macros: [],
-  };
 
   return {
     us: emptyBriefing,

@@ -6,7 +6,13 @@ import SnapshotPreview from "./_components/snapshot-preview";
 export const dynamic = "force-dynamic";
 
 export default async function AdminBriefingPage() {
-  const [runs, latest] = await Promise.all([listRecentRuns(20), getLatestSnapshot("us_close")]);
+  const [runs, usCloseSnap, usPreSnap, krCloseSnap] = await Promise.all([
+    listRecentRuns(20),
+    getLatestSnapshot("us_close"),
+    getLatestSnapshot("us_pre"),
+    getLatestSnapshot("kr_close"),
+  ]);
+  const latest = usCloseSnap ?? usPreSnap ?? krCloseSnap;
 
   return (
     <div className="min-h-dvh bg-gray-950 text-gray-100 p-8">
@@ -14,7 +20,7 @@ export default async function AdminBriefingPage() {
         <header>
           <h1 className="text-2xl font-bold">브리핑 배치 관리</h1>
           <p className="text-sm text-gray-400 mt-1">
-            수동 트리거 + 최근 실행 이력. Vercel Cron은 1일 2회 (KST 08:30, 20:30) 자동 실행.
+            수동 트리거 + 최근 실행 이력. Vercel Cron 1일 3회: us_close (07:00 KST), us_pre (20:00 KST), kr_close (16:00 KST).
           </p>
         </header>
 

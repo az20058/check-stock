@@ -15,33 +15,43 @@ const US_INDEX_SYMBOLS: { label: string; symbol: string }[] = [
 
 export const dynamic = "force-dynamic";
 
-function currentSession(): BriefingSession {
+function resolveCurrentSessions(): { us: BriefingSession; kr: BriefingSession } {
   const kstHour = (new Date().getUTCHours() + 9) % 24;
-  if (kstHour >= 7 && kstHour < 16) return "kr_close";
-  if (kstHour >= 16 && kstHour < 23) return "us_pre";
-  return "us_close";
+  return {
+    us: kstHour >= 7 && kstHour < 20 ? "us_close" : "us_pre",
+    kr: "kr_close",
+  };
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const session = (searchParams.get("session") as BriefingSession) || currentSession();
-  const snapshot = await getLatestSnapshot(session);
-  if (!snapshot?.briefing_data) {
+export async function GET() {
+  const sessions = resolveCurrentSessions();
+
+  const [usSnapshot, krSnapshot] = await Promise.all([
+    getLatestSnapshot(sessions.us),
+    getLatestSnapshot(sessions.kr),
+  ]);
+
+  if (!usSnapshot?.briefing_data && !krSnapshot?.briefing_data) {
     return NextResponse.json(
       { error: "브리핑 데이터가 아직 생성되지 않았습니다. 배치를 실행해주세요." },
       { status: 503 },
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawSnap = snapshot.briefing_data as any;
-
-  // v1→v2 어댑터: 기존 flat 스냅샷이면 us에 넣고 kr은 빈 구조로
-  const isV1 = !rawSnap.us && rawSnap.movers;
   const emptyMarket = { movers: [], dateLabel: "", headline: "", headlineAccent: "", summary: { title: "", body: "", sub: "", tags: [] }, macros: [], events: [], causes: [] };
-  const snap = isV1
-    ? { us: rawSnap, kr: emptyMarket }
-    : { us: rawSnap.us ?? emptyMarket, kr: rawSnap.kr ?? emptyMarket };
+
+  // US snapshot
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const usRaw = usSnapshot?.briefing_data as any;
+  const usSnap = !usRaw ? emptyMarket
+    : (!usRaw.us && usRaw.movers) ? usRaw  // V1 flat
+    : usRaw.us ?? emptyMarket;
+
+  // KR snapshot
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const krRaw = krSnapshot?.briefing_data as any;
+  const krSnap = !krRaw ? emptyMarket
+    : krRaw.kr ?? emptyMarket;
 
   // 실시간 시세 조회 (US + KR 동시)
   const usSymbols = [...US_INDEX_SYMBOLS.map((x) => x.symbol), ...US_MOVER_TICKERS];
@@ -78,7 +88,7 @@ export async function GET(request: Request) {
   });
 
   // US 무버
-  const usMovers = ((snap.us.movers ?? []) as { ticker: string; reason: string }[]).map((m) => {
+  const usMovers = ((usSnap.movers ?? []) as { ticker: string; reason: string }[]).map((m) => {
     const q = byUsSymbol.get(m.ticker);
     const meta = getStockMeta(m.ticker);
     const market = meta?.market ?? inferMarket(m.ticker);
@@ -103,7 +113,7 @@ export async function GET(request: Request) {
   });
 
   // KR 무버
-  const krMovers = ((snap.kr.movers ?? []) as { ticker: string; reason: string }[]).map((m) => {
+  const krMovers = ((krSnap.movers ?? []) as { ticker: string; reason: string }[]).map((m) => {
     const meta = getStockMeta(m.ticker);
     const market = meta?.market ?? inferMarket(m.ticker);
     const currency = meta?.currency ?? "KRW";
@@ -130,33 +140,33 @@ export async function GET(request: Request) {
 
   const usBriefing: MarketBriefing = {
     market: "US",
-    dateLabel: (snap.us.dateLabel ?? snap.us.date ?? "") as string,
-    headline: (snap.us.headline ?? "") as string,
-    headlineAccent: (snap.us.headlineAccent ?? "") as string,
+    dateLabel: (usSnap.dateLabel ?? usSnap.date ?? "") as string,
+    headline: (usSnap.headline ?? "") as string,
+    headlineAccent: (usSnap.headlineAccent ?? "") as string,
     indices: usIndices,
-    summary: snap.us.summary ?? { title: "", body: "", sub: "", tags: [] },
+    summary: usSnap.summary ?? { title: "", body: "", sub: "", tags: [] },
     movers: usMovers,
-    macros: snap.us.macros?.length ? snap.us.macros : [],
-    events: snap.us.events?.length ? snap.us.events : [],
-    causes: snap.us.causes ?? [],
+    macros: usSnap.macros?.length ? usSnap.macros : [],
+    events: usSnap.events?.length ? usSnap.events : [],
+    causes: usSnap.causes ?? [],
   };
 
   const krBriefing: MarketBriefing = {
     market: "KR",
-    dateLabel: snap.kr.dateLabel ?? "",
-    headline: snap.kr.headline ?? "",
-    headlineAccent: snap.kr.headlineAccent ?? "",
+    dateLabel: krSnap.dateLabel ?? "",
+    headline: krSnap.headline ?? "",
+    headlineAccent: krSnap.headlineAccent ?? "",
     indices: krIndices,
-    summary: snap.kr.summary ?? { title: "", body: "", sub: "", tags: [] },
+    summary: krSnap.summary ?? { title: "", body: "", sub: "", tags: [] },
     movers: krMovers,
-    macros: snap.kr.macros?.length ? snap.kr.macros : [],
+    macros: krSnap.macros?.length ? krSnap.macros : [],
     events: [],
-    causes: snap.kr.causes ?? [],
+    causes: krSnap.causes ?? [],
   };
 
   const briefing: BriefingData = {
-    generatedAt: snapshot.started_at,
-    session: rawSnap.session ?? "us_close",
+    generatedAt: usSnapshot?.started_at ?? krSnapshot?.started_at ?? "",
+    session: sessions.us,
     us: usBriefing,
     kr: krBriefing,
   };

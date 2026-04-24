@@ -3,6 +3,7 @@ import { fetchMarketNews } from "@/lib/collectors/market-news";
 import { fetchCompanyNews } from "@/lib/collectors/company-news";
 import { fetchMacros } from "@/lib/collectors/macros";
 import { fetchEconomicCalendar } from "@/lib/collectors/economic-calendar";
+import { fetchKoreanNews } from "@/lib/collectors/korean-news";
 import { fetchQuotes } from "@/lib/clients/finnhub";
 import { getStockMeta } from "@/lib/data/stock-meta";
 import { runAiPipeline } from "@/lib/ai/pipeline";
@@ -14,9 +15,10 @@ export const MOVER_TICKERS = ["NVDA", "TSLA", "AAPL", "MSFT"] as const;
 export async function runBriefing(triggeredBy: "cron" | "manual"): Promise<string> {
   const runId = await startRun(triggeredBy);
   try {
-    const [marketNewsRes, macrosRes, calendarRes, quotesRes, ...companyNewsRes] =
+    const [marketNewsRes, koreanNewsRes, macrosRes, calendarRes, quotesRes, ...companyNewsRes] =
       await Promise.allSettled([
         fetchMarketNews(15),
+        fetchKoreanNews(20),
         fetchMacros(),
         fetchEconomicCalendar(1),
         fetchQuotes([...MOVER_TICKERS]),
@@ -24,6 +26,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual"): Promise<strin
       ]);
 
     const marketNews = marketNewsRes.status === "fulfilled" ? marketNewsRes.value : [];
+    const koreanNews = koreanNewsRes.status === "fulfilled" ? koreanNewsRes.value : [];
     const macros = macrosRes.status === "fulfilled" ? macrosRes.value : [];
     const economicEvents =
       calendarRes.status === "fulfilled" ? calendarRes.value : [];
@@ -37,6 +40,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual"): Promise<strin
     const sources: RawSources = {
       collectedAt: new Date().toISOString(),
       marketNews,
+      koreanNews,
       companyNews,
       macros,
       economicEvents,

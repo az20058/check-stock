@@ -16,6 +16,12 @@ const SPECS: MacroSpec[] = [
     formatDelta: (d) => `${d >= 0 ? "+" : ""}${(d * 100).toFixed(0)}bp`,
   },
   {
+    label: "2Y Treasury",
+    seriesId: "DGS2",
+    format: (v) => `${v.toFixed(2)}%`,
+    formatDelta: (d) => `${d >= 0 ? "+" : ""}${(d * 100).toFixed(0)}bp`,
+  },
+  {
     label: "DXY (달러)",
     seriesId: "DTWEXBGS",
     format: (v) => v.toFixed(2),
@@ -25,6 +31,18 @@ const SPECS: MacroSpec[] = [
     label: "WTI 원유",
     seriesId: "DCOILWTICO",
     format: (v) => `$${v.toFixed(2)}`,
+    formatDelta: (d) => `${d >= 0 ? "+" : ""}${d.toFixed(2)}%`,
+  },
+  {
+    label: "Fed 기준금리",
+    seriesId: "DFEDTARU",
+    format: (v) => `${v.toFixed(2)}%`,
+    formatDelta: (d) => `${d >= 0 ? "+" : ""}${(d * 100).toFixed(0)}bp`,
+  },
+  {
+    label: "금 (Gold)",
+    seriesId: "GOLDAMGBD228NLBM",
+    format: (v) => `$${v.toFixed(0)}`,
     formatDelta: (d) => `${d >= 0 ? "+" : ""}${d.toFixed(2)}%`,
   },
 ];

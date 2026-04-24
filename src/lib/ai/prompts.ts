@@ -1,15 +1,23 @@
 import type { MarketNewsItem } from "@/lib/collectors/market-news";
 import type { CompanyNewsItem } from "@/lib/collectors/company-news";
+import type { KoreanNewsItem } from "@/lib/collectors/korean-news";
 import type { MacroItem } from "@/types/stock";
 import type { EconomicEvent } from "@/lib/collectors/economic-calendar";
 
 export const marketSummarySystem = `너는 한국어로 미국 주식시장을 설명하는 애널리스트다.
-개인 투자자가 5초 안에 이해할 수 있게 핵심만 간결하게 정리한다.
-전문 용어는 피하고, 숫자는 맥락(왜 이 숫자가 중요한가)과 함께 제시한다.
-한국어로만 답한다.`.trim();
+
+[핵심 원칙]
+- 반드시 오늘(당일) 시장에서 실제로 일어난 일만 다룬다.
+- 주어진 뉴스와 데이터에 근거해서만 답한다. 추측·예측·일반론은 절대 쓰지 않는다.
+- "~할 수 있다", "~가 예상된다" 같은 모호한 표현 대신, "~했다", "~로 나타났다" 같은 사실 기반 표현을 쓴다.
+- 개인 투자자가 5초 안에 이해할 수 있게 핵심만 간결하게 정리한다.
+- 한국어 뉴스와 영어 뉴스를 모두 참고하여, 한국 투자자 관점에서 가장 중요한 이슈를 중심으로 정리한다.
+- 전문 용어는 피하고, 숫자는 맥락(왜 이 숫자가 중요한가)과 함께 제시한다.
+- 한국어로만 답한다.`.trim();
 
 export function buildMarketSummaryUser(args: {
   news: MarketNewsItem[];
+  koreanNews: KoreanNewsItem[];
   macros: MacroItem[];
   dateLabel: string;
 }): string {
@@ -17,6 +25,12 @@ export function buildMarketSummaryUser(args: {
     .slice(0, 12)
     .map((n, i) => `${i + 1}. [${n.source}] ${n.headline}`)
     .join("\n");
+
+  const koreanNewsLines = args.koreanNews
+    .slice(0, 15)
+    .map((n, i) => `${i + 1}. [${n.source}] ${n.title}`)
+    .join("\n");
+
   const macroLines = args.macros
     .map((m) => `- ${m.label}: ${m.value} (${m.delta})`)
     .join("\n");
@@ -26,20 +40,25 @@ export function buildMarketSummaryUser(args: {
 [매크로 변화]
 ${macroLines || "(수집 실패)"}
 
-[주요 뉴스 헤드라인]
+[영문 주요 뉴스 헤드라인]
 ${newsLines || "(뉴스 없음)"}
 
+[한국 금융 뉴스 헤드라인]
+${koreanNewsLines || "(한국 뉴스 없음)"}
+
 위 정보를 바탕으로 오늘 미국 장의 핵심 스토리를 요약하라.
+중요: 반드시 오늘 실제로 일어난 사건과 수치만 언급하라. 과거 이야기나 미래 예측은 쓰지 마라.
 - headline: 브리핑 제목 꼬리말 (5~10자)
-- headlineAccent: 핵심 주제 (예: '나스닥이 흔들린')
-- summary.body: 가장 큰 이유 한 문장
-- summary.sub: 보조 맥락 1~2문장 (섹터 반응 등)
+- headlineAccent: 오늘의 핵심 주제 (예: '나스닥이 흔들린')
+- summary.body: 오늘 시장을 움직인 가장 큰 이유 한 문장
+- summary.sub: 보조 맥락 1~2문장 (섹터 반응, 한국 투자자 시각 등)
 - tags: 3~4개의 해시태그 (#금리, #반도체 등)`;
 }
 
 export const moverReasonSystem = `너는 한국어 증권 리서치 애널리스트다.
 종목이 오늘 왜 움직였는지 핵심 이유를 한 줄로 설명한다.
-추측이 아니라 주어진 뉴스·데이터에 근거해서만 답한다.`.trim();
+반드시 오늘 발생한 사건에 근거해서만 답한다. 추측이나 일반론은 쓰지 않는다.
+주어진 뉴스에 명확한 이유가 없으면 "시장 전반 흐름에 동조"라고 답한다.`.trim();
 
 export function buildMoverReasonUser(args: {
   ticker: string;
@@ -57,9 +76,10 @@ export function buildMoverReasonUser(args: {
 오늘 ${Math.abs(args.changePct).toFixed(2)}% ${direction}.
 
 [최근 뉴스]
-${newsLines || "(관련 뉴스 없음 — 일반 시장 요인으로 추정)"}
+${newsLines || "(관련 뉴스 없음 — 시장 전반 흐름에 동조로 판단)"}
 
-위 정보로 이 종목의 움직임 이유를 10~20자 이내 한국어 한 줄로 답하라.
+위 정보로 이 종목의 오늘 움직임 이유를 10~20자 이내 한국어 한 줄로 답하라.
+반드시 오늘 발생한 사건만 언급하라.
 예: "AI 수요 둔화 우려", "Q1 인도량 하회", "서비스 매출 기대".`;
 }
 

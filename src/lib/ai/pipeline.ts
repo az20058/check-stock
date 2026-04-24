@@ -57,6 +57,7 @@ export async function runAiPipeline(args: {
     system: marketSummarySystem,
     user: buildMarketSummaryUser({
       news: args.sources.marketNews,
+      koreanNews: args.sources.koreanNews,
       macros: args.sources.macros,
       dateLabel,
     }),

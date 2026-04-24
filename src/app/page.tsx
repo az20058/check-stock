@@ -46,6 +46,7 @@ export default function Home() {
   const m: MarketBriefing = market === "US" ? data.us : data.kr;
   const marketLabel = market === "US" ? "미국" : "한국";
   const isKR = market === "KR";
+  const sessionLabel = data.session === "us_pre" ? "장 시작 전 포인트" : "오늘의 브리핑";
 
   return (
     <div
@@ -62,7 +63,7 @@ export default function Home() {
               className="text-[11px] font-semibold uppercase tracking-widest"
               style={{ color: "var(--text-2)" }}
             >
-              오늘의 브리핑
+              {sessionLabel}
             </span>
           </div>
 
@@ -169,7 +170,9 @@ export default function Home() {
                 className="text-[11px] font-semibold uppercase tracking-widest"
                 style={{ color: "var(--accent)" }}
               >
-                {marketLabel} 시장 요약
+                {market === "US" && data.session === "us_pre"
+                    ? "미국 장 시작 전 포인트"
+                    : `${marketLabel} 시장 요약`}
               </span>
             </div>
 
@@ -213,7 +216,7 @@ export default function Home() {
                 className="text-lg font-bold"
                 style={{ color: "var(--text-0)" }}
               >
-                오늘의 원인{" "}
+                {data.session === "us_pre" && market === "US" ? "오늘 밤 주목" : "오늘의 원인"}{" "}
                 <span style={{ color: "var(--accent)" }}>TOP 3</span>
               </h2>
             </div>

@@ -1,7 +1,7 @@
 import { http, HttpResponse, delay } from "msw";
 import { briefingData } from "./data/briefing";
 import { allStocks } from "./data/stocks";
-import { reportsMap } from "./data/reports";
+import { getReport } from "./data/reports";
 
 const watchlistTickers = new Set([
   "NVDA", "TSLA", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "AVGO", "TSM", "BRK.B",
@@ -15,8 +15,7 @@ export const handlers = [
 
   http.get("/api/stocks/:ticker/report", async ({ params }) => {
     await delay(200);
-    const ticker = (params.ticker as string).toUpperCase();
-    const report = reportsMap[ticker];
+    const report = getReport(params.ticker as string);
     if (!report) {
       return HttpResponse.json({ error: "Not found" }, { status: 404 });
     }

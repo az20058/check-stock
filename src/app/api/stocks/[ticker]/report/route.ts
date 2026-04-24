@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { reportsMap } from "@/mocks/data/reports";
+import { getReport } from "@/mocks/data/reports";
 
 export async function GET(
   _: Request,
   { params }: { params: Promise<{ ticker: string }> },
 ) {
   const { ticker } = await params;
-  const report = reportsMap[ticker.toUpperCase()];
+  const report = getReport(ticker);
   if (!report) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

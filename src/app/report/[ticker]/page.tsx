@@ -241,11 +241,11 @@ export default function ReportPage() {
           </div>
         </div>
 
-        {/* 하락 원인 TOP 3 */}
+        {/* 어제 변동 원인 TOP 3 */}
         <div className="mt-6">
           <div className="flex items-baseline gap-1.5 px-5 mb-3">
             <h2 className="text-lg font-bold" style={{ color: "var(--text-0)" }}>
-              어제 하락 원인{" "}
+              어제 {up ? "상승" : "하락"} 원인{" "}
               <span style={{ color: "var(--accent)" }}>TOP 3</span>
             </h2>
             <span className="text-xs" style={{ color: "var(--text-2)" }}>중요도순</span>

@@ -144,6 +144,7 @@
     color: var(--text-0);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    padding-top: env(safe-area-inset-top);
   }
   html {
     @apply font-sans;

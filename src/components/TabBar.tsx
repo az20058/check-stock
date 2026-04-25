@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-type TabId = "home" | "watch" | "search" | "me";
+type TabId = "home" | "watch" | "search";
 
 const tabs: { id: TabId; label: string; href: string; icon: (active: boolean) => React.ReactNode }[] = [
   {
@@ -22,20 +22,11 @@ const tabs: { id: TabId; label: string; href: string; icon: (active: boolean) =>
     ),
   },
   {
-    id: "search", label: "검색", href: "#",
+    id: "search", label: "검색", href: "/search",
     icon: (on) => (
       <svg viewBox="0 0 24 24" fill="none" className="w-[22px] h-[22px]">
         <circle cx="11" cy="11" r="6.5" stroke={on ? "var(--accent)" : "var(--text-3)"} strokeWidth="2"/>
         <path d="M20 20l-4-4" stroke={on ? "var(--accent)" : "var(--text-3)"} strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: "me", label: "내정보", href: "#",
-    icon: (on) => (
-      <svg viewBox="0 0 24 24" fill="none" className="w-[22px] h-[22px]">
-        <circle cx="12" cy="8" r="3.5" stroke={on ? "var(--accent)" : "var(--text-3)"} strokeWidth="2"/>
-        <path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5" stroke={on ? "var(--accent)" : "var(--text-3)"} strokeWidth="2" strokeLinecap="round"/>
       </svg>
     ),
   },

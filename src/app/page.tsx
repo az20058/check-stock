@@ -34,13 +34,16 @@ export default function Home() {
   );
 
   if (isError || !data) return (
-    <div className="relative h-dvh overflow-hidden flex items-center justify-center" style={{ background: "var(--bg-1)" }}>
-      <div className="text-center">
-        <p style={{ color: "var(--text-1)" }}>데이터를 불러올 수 없습니다</p>
-        <button onClick={() => window.location.reload()} className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--accent)", color: "var(--text-0)" }}>
-          다시 시도
-        </button>
+    <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
+      <div className="flex items-center justify-center h-full pb-[80px]">
+        <div className="text-center">
+          <p style={{ color: "var(--text-1)" }}>데이터를 불러올 수 없습니다</p>
+          <button onClick={() => window.location.reload()} className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--accent)", color: "var(--text-0)" }}>
+            다시 시도
+          </button>
+        </div>
       </div>
+      <TabBar active="home" />
     </div>
   );
 

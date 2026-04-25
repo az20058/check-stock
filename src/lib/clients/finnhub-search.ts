@@ -19,6 +19,9 @@ export async function searchSymbols(query: string): Promise<FinnhubSearchResult[
 
   const data = (await res.json()) as { result: FinnhubSearchResult[] };
   return (data.result ?? [])
-    .filter((r) => r.type === "Common Stock")
+    .filter((r) => {
+      const t = r.type?.toLowerCase() ?? "";
+      return t === "common stock" || t === "etp" || t === "equity" || t === "etf";
+    })
     .slice(0, 20);
 }

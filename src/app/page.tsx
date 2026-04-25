@@ -23,7 +23,7 @@ export default function Home() {
 
   if (isLoading) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-      <div className="overflow-y-auto h-full pt-3 pb-[calc(80px+env(safe-area-inset-bottom))] px-4 space-y-4">
+      <div className="overflow-y-auto h-full pt-3 pb-[calc(64px+env(safe-area-inset-bottom))] px-4 space-y-4">
         <div className="h-16 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
         <div className="h-24 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
         <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
@@ -35,7 +35,7 @@ export default function Home() {
 
   if (isError || !data) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-      <div className="flex items-center justify-center h-full pb-[calc(80px+env(safe-area-inset-bottom))]">
+      <div className="flex items-center justify-center h-full pb-[calc(64px+env(safe-area-inset-bottom))]">
         <div className="text-center">
           <p style={{ color: "var(--text-1)" }}>데이터를 불러올 수 없습니다</p>
           <button onClick={() => window.location.reload()} className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "var(--accent)", color: "var(--text-0)" }}>
@@ -58,7 +58,7 @@ export default function Home() {
       style={{ background: "var(--bg-1)" }}
     >
       {/* Scrollable content */}
-      <div className="overflow-y-auto h-full pt-3 pb-[calc(80px+env(safe-area-inset-bottom))]">
+      <div className="overflow-y-auto h-full pt-3 pb-[calc(64px+env(safe-area-inset-bottom))]">
 
         {/* Top: title + market segment */}
         <div style={{ padding: "6px 16px 10px" }}>

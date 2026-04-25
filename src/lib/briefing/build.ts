@@ -5,12 +5,14 @@ import { fetchMacros } from "@/lib/collectors/macros";
 import { fetchEconomicCalendar } from "@/lib/collectors/economic-calendar";
 import { fetchKoreanNews, fetchKoreanMarketNews } from "@/lib/collectors/korean-news";
 import { fetchQuotes } from "@/lib/clients/finnhub";
-import { fetchYahooQuotes, toYahooSymbol } from "@/lib/clients/yahoo";
-import { getStockMeta } from "@/lib/data/stock-meta";
+import type { FinnhubQuote } from "@/lib/clients/finnhub";
+import { fetchYahooQuotes, toYahooSymbol, KR_INDEX_SYMBOLS } from "@/lib/clients/yahoo";
+import type { YahooQuote } from "@/lib/clients/yahoo";
+import { getStockMeta, inferMarket } from "@/lib/data/stock-meta";
 import { runAiPipeline } from "@/lib/ai/pipeline";
 import { startRun, finishRun, failRun } from "./storage";
 import type { RawSources, KrRawSources } from "./types";
-import type { BriefingSession } from "@/types/stock";
+import type { BriefingSession, MarketBriefing } from "@/types/stock";
 
 export const US_MOVER_TICKERS = ["NVDA", "TSLA", "AAPL", "MSFT"] as const;
 export const KR_MOVER_TICKERS = ["005930", "000660", "035420", "005380"] as const;
@@ -18,11 +20,22 @@ export const KR_MOVER_TICKERS = ["005930", "000660", "035420", "005380"] as cons
 /** @deprecated Use US_MOVER_TICKERS */
 export const MOVER_TICKERS = US_MOVER_TICKERS;
 
+const US_INDEX_SYMBOLS = [
+  { label: "S&P 500", symbol: "SPY" },
+  { label: "NASDAQ", symbol: "QQQ" },
+  { label: "DOW", symbol: "DIA" },
+  { label: "VIX", symbol: "^VIX" },
+];
+
 export async function runBriefing(triggeredBy: "cron" | "manual", session: BriefingSession): Promise<string> {
   const runId = await startRun(triggeredBy, session);
   try {
     const isUS = session === "us_close" || session === "us_pre";
     const isKR = session === "kr_close";
+
+    // 시세 데이터 — 배치 시점 스냅샷으로 DB에 저장
+    let usQuotes: FinnhubQuote[] = [];
+    let krQuotes: YahooQuote[] = [];
 
     // US 데이터 수집
     let usSources: RawSources = {
@@ -37,7 +50,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
         fetchKoreanNews(20),
         fetchMacros(),
         fetchEconomicCalendar(1),
-        fetchQuotes([...US_MOVER_TICKERS]),
+        fetchQuotes([...US_INDEX_SYMBOLS.map((x) => x.symbol), ...US_MOVER_TICKERS]),
         ...US_MOVER_TICKERS.map((t) => fetchCompanyNews(t, 4)),
       ]);
 
@@ -57,7 +70,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       const koreanNews = koreanNewsRes.status === "fulfilled" ? koreanNewsRes.value : [];
       const macros = macrosRes.status === "fulfilled" ? macrosRes.value : [];
       const economicEvents = calendarRes.status === "fulfilled" ? calendarRes.value : [];
-      const usQuotes = usQuotesRes.status === "fulfilled" ? usQuotesRes.value : [];
+      usQuotes = usQuotesRes.status === "fulfilled" ? usQuotesRes.value : [];
       const usCompanyNews: Record<string, RawSources["companyNews"][string]> = {};
       US_MOVER_TICKERS.forEach((t, i) => {
         const r = usCompanyNewsRes[i];
@@ -91,7 +104,10 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       const krCollectionRes = await Promise.allSettled([
         fetchKoreanMarketNews(20),
         fetchMacros(),
-        fetchYahooQuotes(KR_MOVER_TICKERS.map((t) => toYahooSymbol(t, getStockMeta(t)?.exchange))),
+        fetchYahooQuotes([
+          ...KR_INDEX_SYMBOLS.map((x) => x.symbol),
+          ...KR_MOVER_TICKERS.map((t) => toYahooSymbol(t, getStockMeta(t)?.exchange)),
+        ]),
       ]);
 
       const [krNewsRes, krMacrosRes, krQuotesRes] = krCollectionRes;
@@ -106,7 +122,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
 
       const krMarketNews = krNewsRes.status === "fulfilled" ? krNewsRes.value : [];
       const krMacros = krMacrosRes.status === "fulfilled" ? krMacrosRes.value : [];
-      const krQuotes = krQuotesRes.status === "fulfilled" ? krQuotesRes.value : [];
+      krQuotes = krQuotesRes.status === "fulfilled" ? krQuotesRes.value : [];
 
       krSources = {
         collectedAt: new Date().toISOString(),
@@ -125,6 +141,69 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
 
     const result = await runAiPipeline({ usSources, krSources, usMovers, krMovers, session });
 
+    // 시세 스냅샷으로 enriched MarketBriefing 구성 (API에서 실시간 fetch 불필요)
+    const usQuoteMap = new Map(usQuotes.map((q) => [q.symbol, q]));
+    const krQuoteMap = new Map(krQuotes.map((q) => [q.symbol, q]));
+
+    const enrichedUs: MarketBriefing = {
+      market: "US",
+      dateLabel: result.us.dateLabel,
+      headline: result.us.headline,
+      headlineAccent: result.us.headlineAccent,
+      indices: US_INDEX_SYMBOLS.map(({ label, symbol }) => {
+        const q = usQuoteMap.get(symbol);
+        return { label, value: q?.c ?? 0, changePct: q?.dp ?? 0 };
+      }),
+      summary: result.us.summary,
+      movers: result.us.movers.map((m) => {
+        const q = usQuoteMap.get(m.ticker);
+        const meta = getStockMeta(m.ticker);
+        const market = meta?.market ?? inferMarket(m.ticker);
+        const currency = meta?.currency ?? "USD";
+        const price = q?.c ?? 0;
+        const changePct = q?.dp ?? 0;
+        const change = price - price / (1 + changePct / 100);
+        return {
+          ticker: m.ticker, name: meta?.nameKo ?? m.ticker, nameKo: meta?.nameKo ?? m.ticker,
+          market, exchange: meta?.exchange ?? "", currency, sector: meta?.sector ?? "",
+          price, change, changePct, sparkline: [] as number[], reason: m.reason,
+        };
+      }),
+      macros: result.us.macros,
+      events: result.us.events,
+      causes: result.us.causes,
+    };
+
+    const enrichedKr: MarketBriefing = {
+      market: "KR",
+      dateLabel: result.kr.dateLabel,
+      headline: result.kr.headline,
+      headlineAccent: result.kr.headlineAccent,
+      indices: KR_INDEX_SYMBOLS.map(({ label, symbol }) => {
+        const q = krQuoteMap.get(symbol);
+        return { label, value: q?.c ?? 0, changePct: q?.dp ?? 0 };
+      }),
+      summary: result.kr.summary,
+      movers: result.kr.movers.map((m) => {
+        const meta = getStockMeta(m.ticker);
+        const market = meta?.market ?? inferMarket(m.ticker);
+        const currency = meta?.currency ?? "KRW";
+        const yahooSym = toYahooSymbol(m.ticker, meta?.exchange);
+        const q = krQuoteMap.get(yahooSym);
+        const price = q?.c ?? 0;
+        const changePct = q?.dp ?? 0;
+        const change = price - price / (1 + changePct / 100);
+        return {
+          ticker: m.ticker, name: meta?.nameKo ?? m.ticker, nameKo: meta?.nameKo ?? m.ticker,
+          market, exchange: meta?.exchange ?? "", currency, sector: meta?.sector ?? "",
+          price, change, changePct, sparkline: [] as number[], reason: m.reason,
+        };
+      }),
+      macros: result.kr.macros,
+      events: result.kr.events,
+      causes: result.kr.causes,
+    };
+
     const status: "success" | "partial" =
       (isUS && (usSources.marketNews.length > 0 && usSources.macros.length > 0)) ||
       (isKR && (krSources.koreanMarketNews.length > 0 && krSources.macros.length > 0))
@@ -134,7 +213,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       status,
       sources: usSources,
       krSources,
-      briefingData: result,
+      briefingData: { us: enrichedUs, kr: enrichedKr },
       tokenUsage: result.usage,
     });
 

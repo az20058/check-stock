@@ -1,11 +1,17 @@
 import "server-only";
 import { getServerClient } from "@/lib/clients/supabase";
 import type { RawSources, KrRawSources, TokenUsage } from "./types";
-import type { PipelineOutput } from "@/lib/ai/pipeline";
+import type { MarketBriefing } from "@/types/stock";
 
 const TABLE = "briefing_runs";
 
 export type RunStatus = "running" | "success" | "partial" | "failed";
+
+/** enriched 형식: 배치에서 시세 스냅샷 포함하여 저장 */
+export interface EnrichedBriefingData {
+  us: MarketBriefing;
+  kr: MarketBriefing;
+}
 
 export interface BriefingRun {
   id: string;
@@ -16,7 +22,8 @@ export interface BriefingRun {
   session: import("@/types/stock").BriefingSession;
   error: string | null;
   raw_sources: RawSources | null;
-  briefing_data: Omit<PipelineOutput, "usage"> | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  briefing_data: EnrichedBriefingData | Record<string, any> | null;
   token_usage: TokenUsage | null;
 }
 
@@ -40,7 +47,7 @@ export async function finishRun(
     status: "success" | "partial";
     sources: RawSources;
     krSources: KrRawSources;
-    briefingData: Omit<PipelineOutput, "usage">;
+    briefingData: EnrichedBriefingData;
     tokenUsage: TokenUsage;
   },
 ): Promise<void> {

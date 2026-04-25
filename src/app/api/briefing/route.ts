@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getLatestSnapshot } from "@/lib/briefing/storage";
-import type { BriefingData, BriefingSession, MarketBriefing } from "@/types/stock";
+import { getStockMeta, inferMarket } from "@/lib/data/stock-meta";
+import type { BriefingData, BriefingSession, MarketBriefing, Stock } from "@/types/stock";
 
 export const revalidate = 300; // 5분 ISR — 데이터는 배치 때만 변경됨
 
@@ -24,6 +25,32 @@ const emptyMarket: MarketBriefing = {
   events: [],
   causes: [],
 };
+
+/** legacy {ticker, reason} → Stock & {reason} 변환 (배치 전환 전 데이터 호환) */
+function enrichLegacyMovers(
+  movers: { ticker: string; reason: string }[],
+  defaultMarket: "US" | "KR",
+): (Stock & { reason: string })[] {
+  return movers.map((m) => {
+    const meta = getStockMeta(m.ticker);
+    const market = meta?.market ?? inferMarket(m.ticker);
+    const currency = meta?.currency ?? (defaultMarket === "KR" ? "KRW" : "USD");
+    return {
+      ticker: m.ticker,
+      name: meta?.nameKo ?? m.ticker,
+      nameKo: meta?.nameKo ?? m.ticker,
+      market,
+      exchange: meta?.exchange ?? "",
+      currency,
+      sector: meta?.sector ?? "",
+      price: 0,
+      change: 0,
+      changePct: 0,
+      sparkline: [],
+      reason: m.reason,
+    };
+  });
+}
 
 export async function GET() {
   try {
@@ -53,36 +80,38 @@ export async function GET() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const krRaw = krSnapshot?.briefing_data as any;
 
-    // enriched 형식: us/kr 키에 완성된 MarketBriefing이 들어있음
-    // legacy 형식: flat movers / indices 없음 → fallback
-    const usBriefing: MarketBriefing = usRaw?.us?.indices
-      ? usRaw.us
+    // enriched 형식: us/kr 키에 완성된 MarketBriefing (indices 포함)
+    // legacy 형식: movers가 {ticker, reason}만 → enrichLegacyMovers로 보강
+    const usData = usRaw?.us ?? usRaw;
+    const usBriefing: MarketBriefing = usData?.indices
+      ? usData
       : {
           ...emptyMarket,
           market: "US",
-          dateLabel: usRaw?.us?.dateLabel ?? usRaw?.dateLabel ?? "",
-          headline: usRaw?.us?.headline ?? usRaw?.headline ?? "",
-          headlineAccent: usRaw?.us?.headlineAccent ?? usRaw?.headlineAccent ?? "",
-          summary: usRaw?.us?.summary ?? usRaw?.summary ?? emptyMarket.summary,
-          movers: usRaw?.us?.movers ?? usRaw?.movers ?? [],
-          macros: usRaw?.us?.macros ?? usRaw?.macros ?? [],
-          events: usRaw?.us?.events ?? usRaw?.events ?? [],
-          causes: usRaw?.us?.causes ?? usRaw?.causes ?? [],
+          dateLabel: usData?.dateLabel ?? "",
+          headline: usData?.headline ?? "",
+          headlineAccent: usData?.headlineAccent ?? "",
+          summary: usData?.summary ?? emptyMarket.summary,
+          movers: enrichLegacyMovers(usData?.movers ?? [], "US"),
+          macros: usData?.macros ?? [],
+          events: usData?.events ?? [],
+          causes: usData?.causes ?? [],
         };
 
-    const krBriefing: MarketBriefing = krRaw?.kr?.indices
-      ? krRaw.kr
+    const krData = krRaw?.kr;
+    const krBriefing: MarketBriefing = krData?.indices
+      ? krData
       : {
           ...emptyMarket,
           market: "KR",
-          dateLabel: krRaw?.kr?.dateLabel ?? "",
-          headline: krRaw?.kr?.headline ?? "",
-          headlineAccent: krRaw?.kr?.headlineAccent ?? "",
-          summary: krRaw?.kr?.summary ?? emptyMarket.summary,
-          movers: krRaw?.kr?.movers ?? [],
-          macros: krRaw?.kr?.macros ?? [],
+          dateLabel: krData?.dateLabel ?? "",
+          headline: krData?.headline ?? "",
+          headlineAccent: krData?.headlineAccent ?? "",
+          summary: krData?.summary ?? emptyMarket.summary,
+          movers: enrichLegacyMovers(krData?.movers ?? [], "KR"),
+          macros: krData?.macros ?? [],
           events: [],
-          causes: krRaw?.kr?.causes ?? [],
+          causes: krData?.causes ?? [],
         };
 
     const briefing: BriefingData = {

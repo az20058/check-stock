@@ -16,7 +16,10 @@ export async function fetchYahooQuotes(symbols: string[]): Promise<YahooQuote[]>
       next: { revalidate: 60 },
     },
   );
-  if (!res.ok) throw new Error(`Yahoo Finance ${res.status}`);
+  if (!res.ok) {
+    console.error(`[yahoo] API returned ${res.status} for ${symbols.join(",")}`);
+    return [];
+  }
 
   const json = (await res.json()) as {
     quoteResponse?: {

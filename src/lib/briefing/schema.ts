@@ -15,7 +15,7 @@ export const marketSummarySchema = z.object({
     title: z.string().min(1),
     desc: z.string().min(1),
     tags: z.array(z.string()).max(3),
-  })).length(3),
+  })).max(3).default([]),
 });
 export type MarketSummary = z.infer<typeof marketSummarySchema>;
 

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const marketSummarySchema = z.object({
   headline: z.string().min(1),
-  headlineAccent: z.string().min(1),
+  headlineAccent: z.string().default(""),
   dateLabel: z.string().min(1),
   summary: z.object({
     title: z.string().min(1),

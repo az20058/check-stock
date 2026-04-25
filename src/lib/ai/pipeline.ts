@@ -1,6 +1,14 @@
 import "server-only";
 import { callClaudeJson } from "@/lib/clients/anthropic";
 import type { BriefingSession } from "@/types/stock";
+
+/** Claude가 XML 태그를 섞어 출력하는 경우 headline 정리 */
+function sanitizeRawSummary(raw: Record<string, unknown>): Record<string, unknown> {
+  const headline = typeof raw.headline === "string" ? raw.headline : "";
+  // headline에 XML/HTML 태그가 포함된 경우 제거
+  const cleaned = headline.replace(/<[^>]*>/g, "").replace(/\\n/g, " ").replace(/"+$/, "").trim();
+  return { ...raw, headline: cleaned || headline };
+}
 import {
   marketSummarySystem,
   krMarketSummarySystem,
@@ -141,7 +149,8 @@ export async function runAiPipeline(args: {
     addUsage(usSummaryRes.usage);
     let usSummary: MarketSummary;
     try {
-      usSummary = marketSummarySchema.parse(usSummaryRes.data);
+      const sanitized = sanitizeRawSummary(usSummaryRes.data as Record<string, unknown>);
+      usSummary = marketSummarySchema.parse(sanitized);
     } catch (e) {
       console.error("[pipeline] US summary parse failed:", e, "raw:", JSON.stringify(usSummaryRes.data));
       throw e;
@@ -203,7 +212,8 @@ export async function runAiPipeline(args: {
   addUsage(krSummaryRes.usage);
   let krSummary: MarketSummary;
   try {
-    krSummary = marketSummarySchema.parse(krSummaryRes.data);
+    const sanitized = sanitizeRawSummary(krSummaryRes.data as Record<string, unknown>);
+    krSummary = marketSummarySchema.parse(sanitized);
   } catch (e) {
     console.error("[pipeline] KR summary parse failed:", e, "raw:", JSON.stringify(krSummaryRes.data));
     throw e;

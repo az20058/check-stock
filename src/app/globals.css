@@ -146,6 +146,8 @@
     -webkit-font-smoothing: antialiased;
     padding-top: env(safe-area-inset-top);
     overscroll-behavior-y: none;
+    overflow: hidden;
+    height: 100dvh;
   }
   html {
     @apply font-sans;

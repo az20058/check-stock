@@ -1,41 +1,39 @@
+import YahooFinance from "yahoo-finance2";
+
 export interface YahooQuote {
   symbol: string;
   c: number;   // regularMarketPrice
   dp: number;  // regularMarketChangePercent
 }
 
-const YAHOO_BASE = "https://query1.finance.yahoo.com/v7/finance/quote";
+const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 export async function fetchYahooQuotes(symbols: string[]): Promise<YahooQuote[]> {
   if (symbols.length === 0) return [];
 
-  const res = await fetch(
-    `${YAHOO_BASE}?symbols=${symbols.join(",")}`,
-    {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; check-stock/1.0)" },
-      next: { revalidate: 60 },
-    },
-  );
-  if (!res.ok) {
-    console.error(`[yahoo] API returned ${res.status} for ${symbols.join(",")}`);
+  try {
+    const results = await Promise.allSettled(
+      symbols.map((s) => yf.quote(s)),
+    );
+
+    const quotes: YahooQuote[] = [];
+    results.forEach((r, i) => {
+      if (r.status === "fulfilled" && r.value) {
+        quotes.push({
+          symbol: r.value.symbol ?? symbols[i],
+          c: r.value.regularMarketPrice ?? 0,
+          dp: r.value.regularMarketChangePercent ?? 0,
+        });
+      } else if (r.status === "rejected") {
+        console.error(`[yahoo] quote failed for ${symbols[i]}:`, r.reason);
+      }
+    });
+
+    return quotes;
+  } catch (err) {
+    console.error("[yahoo] fetchYahooQuotes failed:", err);
     return [];
   }
-
-  const json = (await res.json()) as {
-    quoteResponse?: {
-      result?: Array<{
-        symbol: string;
-        regularMarketPrice: number;
-        regularMarketChangePercent: number;
-      }>;
-    };
-  };
-
-  return (json.quoteResponse?.result ?? []).map((q) => ({
-    symbol: q.symbol,
-    c: q.regularMarketPrice,
-    dp: q.regularMarketChangePercent,
-  }));
 }
 
 /** 내부 티커(005930) → Yahoo 심볼(005930.KS) 변환 */

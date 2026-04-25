@@ -145,8 +145,10 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     padding-top: env(safe-area-inset-top);
+    overscroll-behavior-y: none;
   }
   html {
     @apply font-sans;
+    overscroll-behavior-y: none;
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { runBriefing } from "@/lib/briefing/build";
 import type { BriefingSession } from "@/types/stock";
 
@@ -7,10 +8,17 @@ export const dynamic = "force-dynamic";
 
 const VALID_SESSIONS = new Set<BriefingSession>(["us_close", "us_pre", "kr_close"]);
 
+function verifyBearer(header: string | null, secret: string): boolean {
+  if (!header?.startsWith("Bearer ")) return false;
+  const provided = Buffer.from(header.slice(7));
+  const expected = Buffer.from(secret);
+  if (provided.length !== expected.length) return false;
+  return timingSafeEqual(provided, expected);
+}
+
 export async function GET(req: Request) {
-  const auth = req.headers.get("authorization") ?? "";
-  const expected = `Bearer ${process.env.CRON_SECRET ?? ""}`;
-  if (!process.env.CRON_SECRET || auth !== expected) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !verifyBearer(req.headers.get("authorization"), secret)) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -27,7 +35,7 @@ export async function GET(req: Request) {
     const runId = await runBriefing("cron", session);
     return NextResponse.json({ ok: true, runId, session });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown error";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    console.error("[cron/briefing] error:", err);
+    return NextResponse.json({ ok: false, error: "Internal server error" }, { status: 500 });
   }
 }

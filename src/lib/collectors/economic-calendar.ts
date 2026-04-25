@@ -22,8 +22,11 @@ export async function fetchEconomicCalendar(
     const res = await fetch(
       `https://finnhub.io/api/v1/calendar/economic?from=${toYmd(
         from,
-      )}&to=${toYmd(to)}&token=${key}`,
-      { next: { revalidate: 3600 } },
+      )}&to=${toYmd(to)}`,
+      {
+        headers: { "X-Finnhub-Token": key },
+        next: { revalidate: 3600 },
+      },
     );
     if (!res.ok) return [];
     const data = (await res.json()) as {

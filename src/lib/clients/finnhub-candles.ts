@@ -26,8 +26,11 @@ export async function fetchCandles(
   const from = to - daysBack * 86400;
 
   const res = await fetch(
-    `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${to}&token=${key}`,
-    { next: { revalidate: 300 } },
+    `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${to}`,
+    {
+      headers: { "X-Finnhub-Token": key },
+      next: { revalidate: 300 },
+    },
   );
   if (!res.ok) throw new Error(`Finnhub candles ${res.status}`);
 

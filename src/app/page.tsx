@@ -10,8 +10,9 @@ import { formatPrice, formatPct } from "@/lib/format";
 import type { MarketCode, MarketBriefing } from "@/types/stock";
 
 function defaultMarket(): MarketCode {
-  const kstHour = (new Date().getUTCHours() + 9) % 24;
-  const kstDay = new Date().getDay();
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const kstHour = kst.getUTCHours();
+  const kstDay = kst.getUTCDay();
   const isWeekday = kstDay >= 1 && kstDay <= 5;
   return isWeekday && kstHour >= 9 && kstHour < 16 ? "KR" : "US";
 }
@@ -22,7 +23,7 @@ export default function Home() {
 
   if (isLoading) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-      <div className="overflow-y-auto h-full pt-3 pb-[96px] px-4 space-y-4">
+      <div className="overflow-y-auto h-full pt-3 pb-[80px] px-4 space-y-4">
         <div className="h-16 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
         <div className="h-24 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
         <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
@@ -54,7 +55,7 @@ export default function Home() {
       style={{ background: "var(--bg-1)" }}
     >
       {/* Scrollable content */}
-      <div className="overflow-y-auto h-full pt-3 pb-[96px]">
+      <div className="overflow-y-auto h-full pt-3 pb-[80px]">
 
         {/* Top: title + market segment */}
         <div style={{ padding: "6px 16px 10px" }}>

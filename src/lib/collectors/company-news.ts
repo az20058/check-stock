@@ -22,8 +22,11 @@ export async function fetchCompanyNews(
     const res = await fetch(
       `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(
         ticker,
-      )}&from=${toYmd(from)}&to=${toYmd(to)}&token=${key}`,
-      { next: { revalidate: 1800 } },
+      )}&from=${toYmd(from)}&to=${toYmd(to)}`,
+      {
+        headers: { "X-Finnhub-Token": key },
+        next: { revalidate: 1800 },
+      },
     );
     if (!res.ok) return [];
     const data = (await res.json()) as Array<{

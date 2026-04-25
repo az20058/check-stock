@@ -21,26 +21,26 @@ function stub(ticker: string, changePct: number): Stock {
 describe("portfolioStats (P1)", () => {
   it("상승/하락/비율을 계산한다", () => {
     const stocks = [stub("A", 1), stub("B", -1), stub("C", 2), stub("D", -3)];
-    expect(portfolioStats(stocks)).toEqual({ upCount: 2, downCount: 2, upPct: 50 });
+    expect(portfolioStats(stocks)).toEqual({ upCount: 2, downCount: 2, upPct: 50, avgChangePct: -0.25 });
   });
 
   it("0%는 상승으로 분류한다 (>= 0)", () => {
     const stocks = [stub("A", 0), stub("B", -1)];
-    expect(portfolioStats(stocks)).toEqual({ upCount: 1, downCount: 1, upPct: 50 });
+    expect(portfolioStats(stocks)).toEqual({ upCount: 1, downCount: 1, upPct: 50, avgChangePct: -0.5 });
   });
 
   it("빈 배열에서 NaN/Infinity 없이 0을 반환한다", () => {
-    expect(portfolioStats([])).toEqual({ upCount: 0, downCount: 0, upPct: 0 });
+    expect(portfolioStats([])).toEqual({ upCount: 0, downCount: 0, upPct: 0, avgChangePct: 0 });
   });
 
   it("전부 상승일 때 upPct가 100", () => {
     const stocks = [stub("A", 1), stub("B", 2)];
-    expect(portfolioStats(stocks)).toEqual({ upCount: 2, downCount: 0, upPct: 100 });
+    expect(portfolioStats(stocks)).toEqual({ upCount: 2, downCount: 0, upPct: 100, avgChangePct: 1.5 });
   });
 
   it("전부 하락일 때 upPct가 0", () => {
     const stocks = [stub("A", -1), stub("B", -2)];
-    expect(portfolioStats(stocks)).toEqual({ upCount: 0, downCount: 2, upPct: 0 });
+    expect(portfolioStats(stocks)).toEqual({ upCount: 0, downCount: 2, upPct: 0, avgChangePct: -1.5 });
   });
 
   it("반올림으로 upPct 100% 넘지 않는다 (3종목 중 2개 상승 = 67)", () => {

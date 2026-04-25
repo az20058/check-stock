@@ -12,6 +12,13 @@ export async function GET(request: Request) {
     return NextResponse.json([]);
   }
 
+  if (tickers.length > 30) {
+    return NextResponse.json(
+      { error: "Too many tickers (max 30)" },
+      { status: 400 },
+    );
+  }
+
   try {
     const quotes = await fetchQuotes(tickers);
     return NextResponse.json(quotes);

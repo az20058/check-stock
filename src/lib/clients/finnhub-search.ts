@@ -9,8 +9,11 @@ export async function searchSymbols(query: string): Promise<FinnhubSearchResult[
   if (!key) throw new Error("FINNHUB_API_KEY not set");
 
   const res = await fetch(
-    `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${key}`,
-    { next: { revalidate: 300 } },
+    `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}`,
+    {
+      headers: { "X-Finnhub-Token": key },
+      next: { revalidate: 300 },
+    },
   );
   if (!res.ok) throw new Error(`Finnhub search ${res.status}`);
 

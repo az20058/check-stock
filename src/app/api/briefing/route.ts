@@ -184,7 +184,7 @@ export async function GET() {
   } catch (err) {
     console.error("[/api/briefing] error:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "unknown error" },
+      { error: "브리핑 데이터를 불러오는 중 오류가 발생했습니다" },
       { status: 500 },
     );
   }

@@ -4,13 +4,17 @@ export interface PortfolioStats {
   upCount: number;
   downCount: number;
   upPct: number;
+  avgChangePct: number;
 }
 
 export function portfolioStats(stocks: readonly Stock[]): PortfolioStats {
   const upCount = stocks.filter((s) => s.changePct >= 0).length;
   const downCount = stocks.length - upCount;
   const upPct = stocks.length > 0 ? Math.round((upCount / stocks.length) * 100) : 0;
-  return { upCount, downCount, upPct };
+  const avgChangePct = stocks.length > 0
+    ? stocks.reduce((sum, s) => sum + s.changePct, 0) / stocks.length
+    : 0;
+  return { upCount, downCount, upPct, avgChangePct };
 }
 
 export function sortByAbsChange(stocks: readonly Stock[]): Stock[] {

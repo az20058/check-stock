@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const runId = await runBriefing("manual", session);
     return NextResponse.json({ ok: true, runId, session });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown error";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    console.error("[admin/trigger] error:", err);
+    return NextResponse.json({ ok: false, error: "브리핑 생성 실패" }, { status: 500 });
   }
 }

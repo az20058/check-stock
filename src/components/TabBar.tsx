@@ -43,11 +43,11 @@ const tabs: { id: TabId; label: string; href: string; icon: (active: boolean) =>
 
 export default function TabBar({ active = "home" }: { active?: TabId }) {
   return (
-    <div className="absolute bottom-0 left-0 right-0 h-[82px] flex items-start justify-around pt-2.5 px-3 z-10"
+    <div className="absolute bottom-0 left-0 right-0 h-[72px] flex items-end justify-around pb-5 px-3 z-10"
       style={{ background: "linear-gradient(180deg, rgba(15,18,24,0) 0%, rgba(15,18,24,0.85) 30%, var(--bg-1) 60%)" }}>
       {tabs.map((t) => (
         <Link key={t.id} href={t.href}
-          className="flex flex-col items-center gap-1 text-[10px] font-semibold py-1.5 px-3.5 flex-1"
+          className="flex flex-col items-center gap-0.5 text-[10px] font-semibold px-3.5 flex-1"
           style={{ color: active === t.id ? "var(--accent)" : "var(--text-3)" }}>
           {t.icon(active === t.id)}
           <span>{t.label}</span>

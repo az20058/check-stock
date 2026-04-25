@@ -180,7 +180,7 @@ export async function runAiPipeline(args: {
 
     return {
       us: {
-        dateLabel: usSummary.dateLabel,
+        dateLabel: usDateLabel,
         headline: usSummary.headline,
         headlineAccent: usSummary.headlineAccent,
         summary: usSummary.summary,
@@ -228,7 +228,7 @@ export async function runAiPipeline(args: {
   return {
     us: emptyBriefing,
     kr: {
-      dateLabel: krSummary.dateLabel,
+      dateLabel: krDateLabel,
       headline: krSummary.headline,
       headlineAccent: krSummary.headlineAccent,
       summary: krSummary.summary,

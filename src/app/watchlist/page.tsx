@@ -19,7 +19,7 @@ export default function WatchlistPage() {
 
   if (isLoading) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-      <div className="overflow-y-auto h-full pt-3 pb-[96px] px-4 space-y-4">
+      <div className="overflow-y-auto h-full pt-3 pb-[80px] px-4 space-y-4">
         <div className="h-20 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
         <div className="h-32 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
         <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
@@ -60,7 +60,7 @@ export default function WatchlistPage() {
   );
 
   const filtered = filter === "전체" ? stocks : stocks.filter((s) => s.market === filter);
-  const { upCount, downCount, upPct } = portfolioStats(filtered);
+  const { upCount, downCount, upPct, avgChangePct } = portfolioStats(filtered);
   const sortedByChange = sortByAbsChange(filtered);
 
   const portfolioLabel =
@@ -74,7 +74,7 @@ export default function WatchlistPage() {
       style={{ background: "var(--bg-1)" }}
     >
       {/* Scrollable content */}
-      <div className="overflow-y-auto h-full pt-3 pb-[96px]">
+      <div className="overflow-y-auto h-full pt-3 pb-[80px]">
 
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-2">
@@ -145,9 +145,9 @@ export default function WatchlistPage() {
             <div className="flex items-baseline gap-2 mt-2">
               <span
                 className="font-mono text-[34px] font-bold leading-none"
-                style={{ color: "var(--down)" }}
+                style={{ color: avgChangePct >= 0 ? "var(--up)" : "var(--down)" }}
               >
-                −0.92%
+                {avgChangePct >= 0 ? "+" : ""}{avgChangePct.toFixed(2)}%
               </span>
               <span
                 className="text-xs"

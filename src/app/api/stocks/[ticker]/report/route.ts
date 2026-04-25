@@ -4,12 +4,22 @@ import { generateReport } from "@/lib/report/generate";
 
 export const maxDuration = 30;
 
+// 영문 1~5자 또는 한국 종목코드 6자리
+const TICKER_RE = /^[A-Z]{1,5}$|^\d{6}$/;
+
 export async function GET(
   _: Request,
   { params }: { params: Promise<{ ticker: string }> },
 ) {
   const { ticker } = await params;
   const upper = ticker.toUpperCase();
+
+  if (!TICKER_RE.test(upper)) {
+    return NextResponse.json(
+      { error: "Invalid ticker format" },
+      { status: 400 },
+    );
+  }
 
   // 캐시 확인
   try {
@@ -28,7 +38,7 @@ export async function GET(
 
     return NextResponse.json(report);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "리포트 생성 실패";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error(`[report/${upper}] error:`, err);
+    return NextResponse.json({ error: "리포트 생성 실패" }, { status: 500 });
   }
 }

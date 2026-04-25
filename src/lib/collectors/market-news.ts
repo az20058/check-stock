@@ -11,8 +11,11 @@ export async function fetchMarketNews(limit = 15): Promise<MarketNewsItem[]> {
   if (!key) return [];
   try {
     const res = await fetch(
-      `https://finnhub.io/api/v1/news?category=general&token=${key}`,
-      { next: { revalidate: 1800 } },
+      `https://finnhub.io/api/v1/news?category=general`,
+      {
+        headers: { "X-Finnhub-Token": key },
+        next: { revalidate: 1800 },
+      },
     );
     if (!res.ok) return [];
     const data = (await res.json()) as MarketNewsItem[];

@@ -44,6 +44,15 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       const [marketNewsRes, koreanNewsRes, macrosRes, calendarRes, usQuotesRes, ...usCompanyNewsRes] =
         usCollectionRes;
 
+      // 실패한 collector 로깅
+      const usLabels = ["marketNews", "koreanNews", "macros", "economicCalendar", "usQuotes",
+        ...US_MOVER_TICKERS.map((t) => `companyNews:${t}`)];
+      usCollectionRes.forEach((r, i) => {
+        if (r.status === "rejected") {
+          console.error(`[briefing] US collector "${usLabels[i]}" failed:`, r.reason);
+        }
+      });
+
       const marketNews = marketNewsRes.status === "fulfilled" ? marketNewsRes.value : [];
       const koreanNews = koreanNewsRes.status === "fulfilled" ? koreanNewsRes.value : [];
       const macros = macrosRes.status === "fulfilled" ? macrosRes.value : [];
@@ -86,6 +95,14 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       ]);
 
       const [krNewsRes, krMacrosRes, krQuotesRes] = krCollectionRes;
+
+      // 실패한 collector 로깅
+      const krLabels = ["koreanMarketNews", "macros", "yahooQuotes"];
+      krCollectionRes.forEach((r, i) => {
+        if (r.status === "rejected") {
+          console.error(`[briefing] KR collector "${krLabels[i]}" failed:`, r.reason);
+        }
+      });
 
       const krMarketNews = krNewsRes.status === "fulfilled" ? krNewsRes.value : [];
       const krMacros = krMacrosRes.status === "fulfilled" ? krMacrosRes.value : [];

@@ -81,8 +81,13 @@ async function runMoverReason(
     maxTokens: 150,
   });
   addUsage(res.usage);
-  const parsed: MoverReason = moverReasonSchema.parse(res.data);
-  return { ticker: m.ticker, reason: parsed.reason };
+  try {
+    const parsed: MoverReason = moverReasonSchema.parse(res.data);
+    return { ticker: m.ticker, reason: parsed.reason };
+  } catch (e) {
+    console.error(`[pipeline] mover reason parse failed for ${m.ticker}:`, e, "raw:", JSON.stringify(res.data));
+    throw e;
+  }
 }
 
 export async function runAiPipeline(args: {
@@ -134,7 +139,13 @@ export async function runAiPipeline(args: {
       maxTokens: 800,
     });
     addUsage(usSummaryRes.usage);
-    const usSummary: MarketSummary = marketSummarySchema.parse(usSummaryRes.data);
+    let usSummary: MarketSummary;
+    try {
+      usSummary = marketSummarySchema.parse(usSummaryRes.data);
+    } catch (e) {
+      console.error("[pipeline] US summary parse failed:", e, "raw:", JSON.stringify(usSummaryRes.data));
+      throw e;
+    }
 
     // 2. US mover reasons in parallel
     const usMoverResults = await Promise.all(
@@ -190,7 +201,13 @@ export async function runAiPipeline(args: {
     maxTokens: 800,
   });
   addUsage(krSummaryRes.usage);
-  const krSummary: MarketSummary = marketSummarySchema.parse(krSummaryRes.data);
+  let krSummary: MarketSummary;
+  try {
+    krSummary = marketSummarySchema.parse(krSummaryRes.data);
+  } catch (e) {
+    console.error("[pipeline] KR summary parse failed:", e, "raw:", JSON.stringify(krSummaryRes.data));
+    throw e;
+  }
 
   const krMoverResults = await Promise.all(
     args.krMovers.map((m) =>

@@ -250,7 +250,7 @@ export async function runAiPipeline(args: {
     toolName: "submit_market_summary",
     toolDescription: "오늘의 한국 시장 요약 결과를 제출한다",
     inputSchema: marketSummaryJsonSchema,
-    maxTokens: 800,
+    maxTokens: 2000,
   });
   addUsage(krSummaryRes.usage);
   let krSummary: MarketSummary;

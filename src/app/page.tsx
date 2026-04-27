@@ -474,23 +474,23 @@ export default function Home() {
           </div>
         )}
 
-        {/* 최근 브리핑 포스트 */}
-        {posts && posts.length > 0 && (
+        {/* 최근 브리핑 포스트 (선택된 시장만) */}
+        {posts && posts.filter((p) => p.market === market).length > 0 && (
           <div className="px-4 mt-4">
             <div className="flex items-center justify-between mb-2 px-1">
               <h2
                 className="text-lg font-bold"
                 style={{ color: "var(--text-0)" }}
               >
-                최근 브리핑
+                최근 {marketLabel} 브리핑
               </h2>
               <span className="text-xs" style={{ color: "var(--text-2)" }}>
-                {posts.length}건
+                {posts.filter((p) => p.market === market).length}건
               </span>
             </div>
 
             <div className="flex flex-col gap-2">
-              {posts.map((p) => {
+              {posts.filter((p) => p.market === market).map((p) => {
                 const flag = p.market === "KR" ? "🇰🇷" : "🇺🇸";
                 const sessionLabel =
                   p.session === "us_pre"

@@ -8,6 +8,33 @@ export const dynamic = "force-dynamic";
 
 const VALID_SESSIONS = new Set<BriefingSession>(["us_close", "us_pre", "kr_close"]);
 
+/** KST 기준 정시 스케줄 — vercel.json `0 9,11,21 * * *`(UTC)와 매칭 */
+const SCHEDULE_KST: Array<{ hour: number; session: BriefingSession }> = [
+  { hour: 6, session: "us_close" },
+  { hour: 18, session: "kr_close" },
+  { hour: 20, session: "us_pre" },
+];
+
+/** 호출 시각(KST)에서 가장 가까운 스케줄 슬롯의 session을 고른다. Hobby 1h flexible window 대응 */
+function pickSessionByTime(): BriefingSession {
+  const now = new Date();
+  const kstMin = ((now.getUTCHours() + 9) % 24) * 60 + now.getUTCMinutes();
+  let best = SCHEDULE_KST[0];
+  let bestDist = Infinity;
+  for (const slot of SCHEDULE_KST) {
+    const slotMin = slot.hour * 60;
+    const d = Math.min(
+      Math.abs(slotMin - kstMin),
+      1440 - Math.abs(slotMin - kstMin),
+    );
+    if (d < bestDist) {
+      bestDist = d;
+      best = slot;
+    }
+  }
+  return best.session;
+}
+
 /**
  * 주말 동결 윈도우: 토요일 06:00 KST 배치 이후부터 월요일 06:00 KST 배치까지 모두 건너뛴다.
  * - 토 06:00 us_close (금요일 美 마감 브리핑) — 실행 (마지막 배치)
@@ -42,16 +69,17 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const session = url.searchParams.get("session") as BriefingSession | null;
-  if (!session || !VALID_SESSIONS.has(session)) {
+  const sessionParam = url.searchParams.get("session") as BriefingSession | null;
+  if (sessionParam && !VALID_SESSIONS.has(sessionParam)) {
     return NextResponse.json(
-      { ok: false, error: "Missing or invalid session param (us_close | us_pre | kr_close)" },
+      { ok: false, error: "Invalid session param (us_close | us_pre | kr_close)" },
       { status: 400 },
     );
   }
+  const session = sessionParam ?? pickSessionByTime();
 
   if (isWeekendOff()) {
-    return NextResponse.json({ ok: true, skipped: true, reason: "weekend" });
+    return NextResponse.json({ ok: true, skipped: true, reason: "weekend", session });
   }
 
   try {

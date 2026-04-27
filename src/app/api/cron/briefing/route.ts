@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const VALID_SESSIONS = new Set<BriefingSession>(["us_close", "us_pre", "kr_close"]);
 
-/** KST 기준 정시 스케줄 — vercel.json `0 9,11,21 * * *`(UTC)와 매칭 */
+/** KST 기준 정시 스케줄 — session 쿼리 없이 호출되는 경우의 fallback 분류용 */
 const SCHEDULE_KST: Array<{ hour: number; session: BriefingSession }> = [
   { hour: 6, session: "us_close" },
   { hour: 18, session: "kr_close" },

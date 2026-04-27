@@ -17,6 +17,104 @@ export default function WatchlistPage() {
   const { data: quotes, isLoading, isError } = useStockQuotes(tickers);
   const [filter, setFilter] = useState<"전체" | "US" | "KR">("전체");
 
+  if (tickers.length === 0) return (
+    <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
+      <div className="overflow-y-auto h-full pt-3 pb-[calc(64px+env(safe-area-inset-bottom))]">
+        <div className="flex items-start justify-between px-5 py-2">
+          <div>
+            <p
+              className="text-[11px] uppercase tracking-widest font-semibold"
+              style={{ color: "var(--text-3)" }}
+            >
+              WATCHLIST
+            </p>
+            <h1
+              className="text-[32px] font-extrabold tracking-tight leading-tight mt-1"
+              style={{ color: "var(--text-0)" }}
+            >
+              관심종목
+            </h1>
+          </div>
+          <Link
+            href="/search"
+            className="flex items-center justify-center rounded-[14px] border"
+            style={{
+              width: 40,
+              height: 40,
+              background: "var(--bg-2)",
+              borderColor: "var(--line)",
+              marginTop: 6,
+            }}
+            aria-label="종목 추가"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M9 3v12M3 9h12" stroke="var(--text-1)" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </Link>
+        </div>
+
+        <div className="px-4 mt-8">
+          <div
+            className="rounded-[20px] border flex flex-col items-center text-center"
+            style={{
+              background: "var(--bg-2)",
+              borderColor: "var(--line)",
+              padding: "32px 24px",
+            }}
+          >
+            <div
+              className="flex items-center justify-center rounded-full"
+              style={{
+                width: 56,
+                height: 56,
+                background: "var(--accent-soft)",
+                marginBottom: 16,
+              }}
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8 5.8 21.3l2.4-7.4L2 9.4h7.6L12 2z"
+                  stroke="var(--accent)"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <h2
+              className="text-lg font-bold"
+              style={{ color: "var(--text-0)" }}
+            >
+              아직 관심종목이 없어요
+            </h2>
+            <p
+              className="text-sm mt-2 leading-relaxed"
+              style={{ color: "var(--text-2)" }}
+            >
+              관심 있는 종목을 등록하면<br />
+              포트폴리오 요약과 히트맵을 볼 수 있어요.
+            </p>
+            <Link
+              href="/search"
+              className="inline-flex items-center justify-center gap-2 rounded-[14px] font-bold mt-6"
+              style={{
+                background: "var(--accent)",
+                color: "var(--bg-1)",
+                padding: "12px 20px",
+                fontSize: 14,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+                <path d="M9 3v12M3 9h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              종목 추가하기
+            </Link>
+          </div>
+        </div>
+      </div>
+      <TabBar active="watch" />
+    </div>
+  );
+
   if (isLoading) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
       <div className="overflow-y-auto h-full pt-3 pb-[calc(64px+env(safe-area-inset-bottom))] px-4 space-y-4">

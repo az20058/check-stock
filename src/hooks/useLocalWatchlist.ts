@@ -3,9 +3,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "check-stock:watchlist";
-const DEFAULT_TICKERS = [
-  "NVDA", "TSLA", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "AVGO", "TSM",
-];
+const DEFAULT_TICKERS: string[] = [];
 
 function getTickers(): string[] {
   if (typeof window === "undefined") return DEFAULT_TICKERS;

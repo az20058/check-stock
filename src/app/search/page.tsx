@@ -31,7 +31,7 @@ export default function SearchPage() {
       className="relative h-dvh overflow-hidden"
       style={{ background: "var(--bg-1)" }}
     >
-      <div className="overflow-y-auto h-full pt-3 pb-[calc(64px+env(safe-area-inset-bottom))]">
+      <div className="overflow-y-auto h-full pt-3 pb-[calc(72px+env(safe-area-inset-bottom))]">
         {/* Search input */}
         <div className="px-4 pt-2 pb-3">
           <div

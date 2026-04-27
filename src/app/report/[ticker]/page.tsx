@@ -28,7 +28,7 @@ export default function ReportPage() {
   if (isLoading) {
     return (
       <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-        <div className="overflow-y-auto h-full pt-3 pb-[calc(64px+env(safe-area-inset-bottom))] px-4 space-y-4">
+        <div className="overflow-y-auto h-full pt-3 pb-[calc(72px+env(safe-area-inset-bottom))] px-4 space-y-4">
           <div className="h-10 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
           <div className="h-24 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
           <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
@@ -69,7 +69,7 @@ export default function ReportPage() {
   return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
       {/* Scrollable content */}
-      <div className="overflow-y-auto h-full pt-3 pb-[calc(64px+env(safe-area-inset-bottom))]">
+      <div className="overflow-y-auto h-full pt-3 pb-[calc(72px+env(safe-area-inset-bottom))]">
 
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 pt-1.5">

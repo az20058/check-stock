@@ -145,7 +145,7 @@ export default function PostDetailPage() {
   if (isLoading) {
     return (
       <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-        <div className="overflow-y-auto h-full pt-[68px] pb-[calc(64px+env(safe-area-inset-bottom))] px-4 space-y-4">
+        <div className="overflow-y-auto h-full pt-[68px] pb-[calc(72px+env(safe-area-inset-bottom))] px-4 space-y-4">
           <div className="h-12 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
           <div className="h-32 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
           <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
@@ -238,7 +238,7 @@ export default function PostDetailPage() {
         <div className="w-9 h-9" />
       </div>
 
-      <div className="overflow-y-auto h-full pt-[68px] pb-[calc(64px+env(safe-area-inset-bottom))]">
+      <div className="overflow-y-auto h-full pt-[68px] pb-[calc(72px+env(safe-area-inset-bottom))]">
         {/* Hero */}
         <div style={{ padding: "8px 20px 14px" }}>
           <div

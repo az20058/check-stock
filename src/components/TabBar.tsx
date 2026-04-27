@@ -35,7 +35,7 @@ const tabs: { id: TabId; label: string; href: string; icon: (active: boolean) =>
 export default function TabBar({ active = "home" }: { active?: TabId }) {
   return (
     <div className="fixed bottom-0 left-0 right-0 flex items-end justify-around px-3 z-10"
-      style={{ height: "calc(56px + env(safe-area-inset-bottom))", paddingBottom: "calc(6px + env(safe-area-inset-bottom))", background: "var(--bg-2)", borderTop: "1px solid var(--line-strong)" }}>
+      style={{ height: "calc(64px + env(safe-area-inset-bottom))", paddingTop: "8px", paddingBottom: "env(safe-area-inset-bottom)", background: "var(--bg-2)", borderTop: "1px solid var(--line-strong)" }}>
       {tabs.map((t) => (
         <Link key={t.id} href={t.href}
           className="flex flex-col items-center gap-0.5 text-[10px] font-semibold px-3.5 flex-1"

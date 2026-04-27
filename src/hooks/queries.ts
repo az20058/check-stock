@@ -1,11 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
 import type { BriefingData, StockReport, Stock } from "@/types/stock";
 import type { FinnhubQuote } from "@/lib/clients/finnhub";
+import type { PostListItem } from "@/app/api/posts/route";
+import type { PostDetail } from "@/app/api/posts/[id]/route";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json() as Promise<T>;
+}
+
+export function usePosts() {
+  return useQuery({
+    queryKey: ["posts"],
+    queryFn: () => fetchJson<PostListItem[]>("/api/posts"),
+  });
+}
+
+export function usePostDetail(id: string) {
+  return useQuery({
+    queryKey: ["post", id],
+    queryFn: () => fetchJson<PostDetail>(`/api/posts/${id}`),
+    enabled: !!id,
+  });
 }
 
 export function useBriefing() {

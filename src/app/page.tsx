@@ -5,7 +5,7 @@ import Link from "next/link";
 import TabBar from "@/components/TabBar";
 import Avatar from "@/components/Avatar";
 import Sparkline from "@/components/Sparkline";
-import { useBriefing } from "@/hooks/queries";
+import { useBriefing, usePosts } from "@/hooks/queries";
 import { formatPrice, formatPct } from "@/lib/format";
 import type { MarketCode, MarketBriefing } from "@/types/stock";
 
@@ -20,6 +20,7 @@ function defaultMarket(): MarketCode {
 export default function Home() {
   const [market, setMarket] = useState<MarketCode>(defaultMarket);
   const { data, isLoading, isError } = useBriefing();
+  const { data: posts } = usePosts();
 
   if (isLoading) return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
@@ -469,6 +470,102 @@ export default function Home() {
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* 최근 브리핑 포스트 */}
+        {posts && posts.length > 0 && (
+          <div className="px-4 mt-4">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <h2
+                className="text-lg font-bold"
+                style={{ color: "var(--text-0)" }}
+              >
+                최근 브리핑
+              </h2>
+              <span className="text-xs" style={{ color: "var(--text-2)" }}>
+                {posts.length}건
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {posts.map((p) => {
+                const flag = p.market === "KR" ? "🇰🇷" : "🇺🇸";
+                const sessionLabel =
+                  p.session === "us_pre"
+                    ? "장 시작 전"
+                    : p.session === "us_close"
+                      ? "마감"
+                      : "코스피 마감";
+                const d = new Date(p.startedAt);
+                const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/posts/${p.id}`}
+                    className="rounded-[14px] border block"
+                    style={{
+                      padding: "14px",
+                      background: "var(--bg-2)",
+                      borderColor: "var(--line)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span
+                        className="text-[11px] font-semibold uppercase tracking-widest"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        {flag} {sessionLabel}
+                      </span>
+                      <span
+                        className="font-mono text-[11px]"
+                        style={{ color: "var(--text-3)" }}
+                      >
+                        {dateStr}
+                      </span>
+                    </div>
+                    {p.headline && (
+                      <p
+                        className="text-[14px] font-bold leading-snug"
+                        style={{ color: "var(--text-0)" }}
+                      >
+                        {p.headlineAccent && (
+                          <span style={{ color: "var(--accent)" }}>
+                            {p.headlineAccent}{" "}
+                          </span>
+                        )}
+                        {p.headline}
+                      </p>
+                    )}
+                    {p.summary && (
+                      <p
+                        className="text-[12px] mt-1 line-clamp-2"
+                        style={{ color: "var(--text-2)" }}
+                      >
+                        {p.summary}
+                      </p>
+                    )}
+                    {p.tags.length > 0 && (
+                      <div className="flex gap-1 flex-wrap mt-2">
+                        {p.tags.slice(0, 3).map((t) => (
+                          <span
+                            key={t}
+                            className="text-[10px] rounded-full border h-5 flex items-center px-2"
+                            style={{
+                              background: "var(--bg-3)",
+                              color: "var(--text-2)",
+                              borderColor: "var(--line)",
+                            }}
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}

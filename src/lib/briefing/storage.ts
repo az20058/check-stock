@@ -113,6 +113,17 @@ export async function getLatestSnapshot(
   return null;
 }
 
+export async function getRunById(id: string): Promise<BriefingRun | null> {
+  const supa = getServerClient();
+  const { data, error } = await supa
+    .from(TABLE)
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as BriefingRun;
+}
+
 export async function listRecentRuns(limit = 10): Promise<BriefingRun[]> {
   const supa = getServerClient();
   const { data, error } = await supa

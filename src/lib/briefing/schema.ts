@@ -17,6 +17,8 @@ export const marketSummarySchema = z.object({
     title: z.string().min(1),
     desc: z.string().min(1),
     tags: z.array(z.string()).max(3),
+    impact: z.string().default(""),
+    evidence: z.number().int().min(0).default(0),
   })).max(3).default([]),
 });
 export type MarketSummary = z.infer<typeof marketSummarySchema>;
@@ -79,15 +81,17 @@ export const marketSummaryJsonSchema = {
         type: "object",
         properties: {
           rank: { type: "number", description: "1~3" },
-          title: { type: "string", description: "원인 제목 (15~25자)" },
-          desc: { type: "string", description: "원인 설명 (30~60자)" },
+          title: { type: "string", description: "원인 제목 (15~25자) — 핵심 사건·수치를 압축. 예: '10년물 금리 4.55% 재상승'" },
+          desc: { type: "string", description: "원인 설명 (60~110자) — 구체 수치, 발표 출처, 영향 종목/섹터를 모두 포함한 2문장. 예: '전일 4.50%에서 5bp 상승. 미시간대 기대 인플레이션 3.5% 발표 후 매도세 강화. 성장주 디스카운트 요인.'" },
           tags: {
             type: "array",
             items: { type: "string", description: "# 접두사 포함 해시태그" },
             maxItems: 3,
           },
+          impact: { type: "string", description: "임팩트 한 줄 — 섹터·지수·종목별 등락폭을 짧게 (5~15자). 예: '성장주 −1.8%', '반도체 −2.3%', '거래량 1.9×'" },
+          evidence: { type: "number", description: "이 원인을 뒷받침하는 입력 뉴스·매크로 건수 (1~6 정수). 추정치." },
         },
-        required: ["rank", "title", "desc", "tags"],
+        required: ["rank", "title", "desc", "tags", "impact", "evidence"],
       },
       minItems: 3,
       maxItems: 3,

@@ -44,6 +44,10 @@ export interface Cause {
   title: string;
   desc: string;
   tags: string[];
+  /** 임팩트 한 줄 (예: "성장주 −1.8%"). 구레코드 호환을 위해 optional */
+  impact?: string;
+  /** 근거가 된 출처 건수. 구레코드 호환을 위해 optional */
+  evidence?: number;
 }
 
 export interface MarketBriefing {

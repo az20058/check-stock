@@ -439,11 +439,62 @@ export default function PostDetailPage() {
                           fontSize: 13,
                           lineHeight: 1.5,
                           color: "var(--text-1)",
-                          marginBottom: c.tags.length > 0 ? 10 : 0,
+                          marginBottom: c.impact || (c.evidence ?? 0) > 0 || c.tags.length > 0 ? 10 : 0,
                         }}
                       >
                         {c.desc}
                       </div>
+                      {(c.impact || (c.evidence ?? 0) > 0) && (
+                        <div
+                          className="flex items-center"
+                          style={{ gap: 10, marginBottom: c.tags.length > 0 ? 10 : 0 }}
+                        >
+                          {c.impact && (
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: "var(--down)",
+                                fontFamily: "var(--font-mono, monospace)",
+                                letterSpacing: "-0.01em",
+                              }}
+                            >
+                              {c.impact}
+                            </span>
+                          )}
+                          {c.impact && (c.evidence ?? 0) > 0 && (
+                            <span
+                              style={{
+                                width: 1,
+                                height: 10,
+                                background: "var(--line)",
+                              }}
+                            />
+                          )}
+                          {(c.evidence ?? 0) > 0 && (
+                            <span
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                                fontSize: 11,
+                                color: "var(--text-2)",
+                              }}
+                            >
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                                <path
+                                  d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                              근거 {c.evidence}건
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {c.tags.length > 0 && (
                         <div className="flex gap-1.5 flex-wrap">
                           {c.tags.map((t) => (

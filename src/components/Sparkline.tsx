@@ -9,9 +9,21 @@ export default function Sparkline({
 }) {
   const pts = normalizeChartPoints(data, { width, height });
   const d = pointsToPath(pts);
-  const areaD = d + ` L ${width} ${height} L 0 ${height} Z`;
   const color = up ? "var(--up)" : "var(--down)";
   const fill = up ? "var(--up-soft)" : "var(--down-soft)";
+
+  if (!d) {
+    return (
+      <svg
+        className="inline-block align-middle"
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+      />
+    );
+  }
+
+  const areaD = d + ` L ${width} ${height} L 0 ${height} Z`;
 
   return (
     <svg className="inline-block align-middle" width={width} height={height} viewBox={`0 0 ${width} ${height}`}>

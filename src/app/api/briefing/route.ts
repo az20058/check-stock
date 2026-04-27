@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getLatestSnapshot } from "@/lib/briefing/storage";
 import { getStockMeta, inferMarket } from "@/lib/data/stock-meta";
-import type { BriefingData, BriefingSession, MarketBriefing, Stock } from "@/types/stock";
+import type { BriefingData, BriefingSession, MarketBriefing, MarketIndex, Stock } from "@/types/stock";
 
 export const revalidate = 300; // 5분 ISR — 데이터는 배치 때만 변경됨
 
@@ -50,6 +50,58 @@ function enrichLegacyMovers(
       reason: m.reason,
     };
   });
+}
+
+function num(v: unknown, fallback = 0): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeIndex(raw: any): MarketIndex {
+  return {
+    label: typeof raw?.label === "string" ? raw.label : "",
+    value: num(raw?.value),
+    changePct: num(raw?.changePct),
+  };
+}
+
+function normalizeMover(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  raw: any,
+  defaultMarket: "US" | "KR",
+): Stock & { reason: string } {
+  const ticker = typeof raw?.ticker === "string" ? raw.ticker : "";
+  const meta = ticker ? getStockMeta(ticker) : undefined;
+  const market = (raw?.market as "US" | "KR" | undefined) ?? meta?.market ?? inferMarket(ticker);
+  const currency =
+    (raw?.currency as "USD" | "KRW" | undefined) ??
+    meta?.currency ??
+    (defaultMarket === "KR" ? "KRW" : "USD");
+  return {
+    ticker,
+    name: typeof raw?.name === "string" ? raw.name : meta?.nameKo ?? ticker,
+    nameKo: typeof raw?.nameKo === "string" ? raw.nameKo : meta?.nameKo ?? ticker,
+    market,
+    exchange: typeof raw?.exchange === "string" ? raw.exchange : meta?.exchange ?? "",
+    currency,
+    sector: typeof raw?.sector === "string" ? raw.sector : meta?.sector ?? "",
+    price: num(raw?.price),
+    change: num(raw?.change),
+    changePct: num(raw?.changePct),
+    sparkline: Array.isArray(raw?.sparkline)
+      ? raw.sparkline.filter((n: unknown) => typeof n === "number")
+      : [],
+    reason: typeof raw?.reason === "string" ? raw.reason : "",
+  };
+}
+
+/** 항목 내부 필드 누락(undefined) 방어 — toFixed/toLocaleString crash 방지 */
+function harden(b: MarketBriefing, market: "US" | "KR"): MarketBriefing {
+  return {
+    ...b,
+    indices: (b.indices ?? []).map(normalizeIndex),
+    movers: (b.movers ?? []).map((m) => normalizeMover(m, market)),
+  };
 }
 
 export async function GET() {
@@ -117,8 +169,8 @@ export async function GET() {
     const briefing: BriefingData = {
       generatedAt: usSnapshot?.started_at ?? krSnapshot?.started_at ?? "",
       session: sessions.us,
-      us: usBriefing,
-      kr: krBriefing,
+      us: harden(usBriefing, "US"),
+      kr: harden(krBriefing, "KR"),
     };
 
     return NextResponse.json(briefing);

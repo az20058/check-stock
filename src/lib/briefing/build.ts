@@ -10,6 +10,8 @@ import { fetchYahooQuotes, toYahooSymbol, KR_INDEX_SYMBOLS } from "@/lib/clients
 import type { YahooQuote } from "@/lib/clients/yahoo";
 import { getStockMeta, inferMarket } from "@/lib/data/stock-meta";
 import { runAiPipeline } from "@/lib/ai/pipeline";
+import { ingestNews } from "@/lib/rag/ingest";
+import type { NewsRow } from "@/lib/rag/ingest";
 import { startRun, finishRun, failRun } from "./storage";
 import type { RawSources, KrRawSources } from "./types";
 import type { BriefingSession, MarketBriefing } from "@/types/stock";
@@ -138,6 +140,35 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
         return { ticker: t, nameKo: meta?.nameKo ?? t, changePct: q?.dp ?? 0 };
       });
     }
+
+    // RAG ingestion: 수집한 뉴스를 임베딩하여 news_embeddings 테이블에 적재
+    // 실패해도 배치 전체를 막지 않음 (ingestNews 내부에서 catch)
+    const ragRows: NewsRow[] = [
+      ...usSources.marketNews.map((n) => ({
+        source: n.source, ticker: null,
+        headline: n.headline, summary: n.summary,
+        url: n.url, publishedAt: new Date(n.datetime * 1000),
+      })),
+      ...Object.entries(usSources.companyNews).flatMap(([ticker, items]) =>
+        items.map((n) => ({
+          source: n.source, ticker,
+          headline: n.headline, summary: n.summary,
+          url: null, publishedAt: new Date(n.datetime * 1000),
+        }))
+      ),
+      ...usSources.koreanNews.map((n) => ({
+        source: n.source || "google_news", ticker: null,
+        headline: n.title, summary: null,
+        url: null, publishedAt: n.pubDate ? new Date(n.pubDate) : new Date(),
+      })),
+      ...krSources.koreanMarketNews.map((n) => ({
+        source: n.source || "google_news", ticker: null,
+        headline: n.title, summary: null,
+        url: null, publishedAt: n.pubDate ? new Date(n.pubDate) : new Date(),
+      })),
+    ];
+    const ragStat = await ingestNews(ragRows);
+    console.log(`[briefing] rag ingest: ${ragStat.inserted} inserted, ${ragStat.skipped} skipped`);
 
     const result = await runAiPipeline({ usSources, krSources, usMovers, krMovers, session });
 

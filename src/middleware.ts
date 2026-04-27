@@ -1,13 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { timingSafeEqual } from "crypto";
 
 const REALM = "check-stock admin";
 
+// Edge Runtime 호환: Node 'crypto' 의존성 제거.
+// 길이 다르면 fast-fail (길이 자체는 노출돼도 무방), 그 외엔 모든 바이트를 XOR로 누적.
 function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 function unauthorized(): NextResponse {

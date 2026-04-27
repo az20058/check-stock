@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { usePostDetail } from "@/hooks/queries";
-import { formatPrice, formatPct } from "@/lib/format";
 import TabBar from "@/components/TabBar";
-import Avatar from "@/components/Avatar";
 import type { BriefingSession } from "@/types/stock";
 
 const SESSION_LABEL: Record<BriefingSession, string> = {
@@ -14,14 +13,27 @@ const SESSION_LABEL: Record<BriefingSession, string> = {
   kr_close: "한국 마감 브리핑",
 };
 
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+}
+
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  const yy = d.getFullYear();
+  const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${yy}.${mm}.${dd} ${hh}:${mi}`;
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mi}`;
 }
 
 function formatRelTime(unix: number): string {
@@ -35,16 +47,105 @@ function formatRelTime(unix: number): string {
   return `${d}일 전`;
 }
 
+type SourceTab = "all" | "news-en" | "news-kr" | "macro" | "event";
+type SourceType = "news-en" | "news-kr" | "macro" | "event";
+
+interface SourceRow {
+  type: SourceType;
+  source: string;
+  title: string;
+  time: string;
+  value?: string;
+  url?: string;
+  key: string;
+}
+
+const TYPE_ICON: Record<SourceType, { emoji: string; bg: string; border: string }> = {
+  "news-en": { emoji: "📰", bg: "rgba(59,130,246,0.15)", border: "rgba(59,130,246,0.3)" },
+  "news-kr": { emoji: "🇰🇷", bg: "rgba(34,197,94,0.15)", border: "rgba(34,197,94,0.3)" },
+  macro: { emoji: "📊", bg: "rgba(168,85,247,0.15)", border: "rgba(168,85,247,0.3)" },
+  event: { emoji: "📅", bg: "rgba(245,165,36,0.15)", border: "rgba(245,165,36,0.3)" },
+};
+
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
   const { data, isLoading, isError } = usePostDetail(id);
+  const [tab, setTab] = useState<SourceTab>("all");
+
+  const allSources = useMemo<SourceRow[]>(() => {
+    if (!data) return [];
+    const rows: SourceRow[] = [];
+    data.sources?.marketNews?.forEach((n, i) => {
+      rows.push({
+        type: "news-en",
+        source: n.source,
+        title: n.headline,
+        time: formatRelTime(n.datetime),
+        url: n.url,
+        key: `mn-${i}`,
+      });
+    });
+    data.sources?.koreanNews?.forEach((n, i) => {
+      rows.push({
+        type: "news-kr",
+        source: n.source || "Google News",
+        title: n.title,
+        time: "",
+        key: `kn-${i}`,
+      });
+    });
+    Object.entries(data.sources?.companyNews ?? {}).forEach(([ticker, items]) => {
+      items.forEach((n, i) => {
+        rows.push({
+          type: "news-en",
+          source: `${n.source} · ${ticker}`,
+          title: n.headline,
+          time: formatRelTime(n.datetime),
+          key: `cn-${ticker}-${i}`,
+        });
+      });
+    });
+    data.briefing?.macros?.forEach((m, i) => {
+      rows.push({
+        type: "macro",
+        source: m.label,
+        title: m.label,
+        time: "",
+        value: `${m.value} (${m.delta})`,
+        key: `ma-${i}`,
+      });
+    });
+    data.sources?.economicEvents?.forEach((e, i) => {
+      rows.push({
+        type: "event",
+        source: "Economic Calendar",
+        title: e.event,
+        time: e.time || "",
+        key: `ev-${i}`,
+      });
+    });
+    return rows;
+  }, [data]);
+
+  const counts = useMemo(() => {
+    const c = { all: allSources.length, "news-en": 0, "news-kr": 0, macro: 0, event: 0 };
+    allSources.forEach((s) => {
+      c[s.type]++;
+    });
+    return c;
+  }, [allSources]);
+
+  const filtered = useMemo(
+    () => (tab === "all" ? allSources : allSources.filter((s) => s.type === tab)),
+    [allSources, tab],
+  );
 
   if (isLoading) {
     return (
       <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-        <div className="overflow-y-auto h-full pt-3 pb-[calc(64px+env(safe-area-inset-bottom))] px-4 space-y-4">
+        <div className="overflow-y-auto h-full pt-[68px] pb-[calc(64px+env(safe-area-inset-bottom))] px-4 space-y-4">
           <div className="h-12 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
           <div className="h-32 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
           <div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--bg-2)" }} />
@@ -75,145 +176,160 @@ export default function PostDetailPage() {
     );
   }
 
-  const { market, briefing, sources, session } = data;
+  const { market, briefing, session, startedAt, finishedAt, tokenUsage } = data;
   const isKR = market === "KR";
-  const sessionLabel = SESSION_LABEL[session];
   const flag = isKR ? "🇰🇷" : "🇺🇸";
+  const sessionLabel = `${flag} ${SESSION_LABEL[session]}`;
+  const dateText = formatShortDate(startedAt);
+  const generatedTime = finishedAt ? formatTime(finishedAt) : formatTime(startedAt);
+
+  const durationStr = (() => {
+    if (!finishedAt) return "—";
+    const ms = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
+    if (!Number.isFinite(ms) || ms <= 0) return "—";
+    return `${(ms / 1000).toFixed(1)}s`;
+  })();
+
+  const tabs: { id: SourceTab; label: string }[] = [
+    { id: "all", label: "전체" },
+    { id: "news-en", label: "📰 영문 뉴스" },
+    { id: "news-kr", label: "🇰🇷 한국 뉴스" },
+    { id: "macro", label: "📊 매크로" },
+    { id: "event", label: "📅 이벤트" },
+  ];
 
   return (
     <div className="relative h-dvh overflow-hidden" style={{ background: "var(--bg-1)" }}>
-      <div className="overflow-y-auto h-full pt-3 pb-[calc(64px+env(safe-area-inset-bottom))]">
-        {/* Top bar */}
-        <div className="flex items-center justify-between px-4 pt-1.5">
-          <button
-            className="w-9 h-9 rounded-xl flex items-center justify-center border"
-            style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
-            aria-label="뒤로가기"
-            onClick={() => router.back()}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M15 19l-7-7 7-7"
-                stroke="var(--text-1)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[11px] font-semibold" style={{ color: "var(--text-2)" }}>
-              {flag} {sessionLabel}
-            </span>
-            <span className="font-mono text-[11px]" style={{ color: "var(--text-3)" }}>
-              {formatDateTime(data.startedAt)}
-            </span>
+      {/* Sticky top nav */}
+      <div
+        className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between"
+        style={{
+          padding: "10px 14px",
+          background: "rgba(11,15,25,0.85)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderBottom: "1px solid var(--line)",
+        }}
+      >
+        <button
+          aria-label="뒤로가기"
+          onClick={() => router.back()}
+          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: "var(--bg-2)", border: "1px solid var(--line)" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M10 3L5 8l5 5"
+              stroke="var(--text-1)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        <div className="text-center">
+          <div className="text-[11px] font-semibold" style={{ color: "var(--text-2)" }}>
+            {sessionLabel}
           </div>
-          <div className="w-9" />
+          <div className="text-[13px] font-bold" style={{ color: "var(--text-0)" }}>
+            {dateText}
+          </div>
         </div>
+        <div className="w-9 h-9" />
+      </div>
 
-        {/* Headline */}
-        <div className="px-5 pt-5">
-          <p className="text-xs font-medium" style={{ color: "var(--text-2)" }}>
-            {briefing.dateLabel}
-          </p>
-          <h1
-            className="text-[26px] font-extrabold tracking-tight leading-tight mt-1"
-            style={{ color: "var(--text-0)" }}
-          >
-            <span style={{ color: "var(--accent)" }}>{briefing.headlineAccent}</span>
-            <br />
-            {briefing.headline}
-          </h1>
-        </div>
-
-        {/* Indices */}
-        {briefing.indices.length > 0 && (
+      <div className="overflow-y-auto h-full pt-[68px] pb-[calc(64px+env(safe-area-inset-bottom))]">
+        {/* Hero */}
+        <div style={{ padding: "8px 20px 14px" }}>
           <div
-            className="flex gap-2 overflow-x-auto px-5 py-3 scrollbar-none"
-            style={{ scrollbarWidth: "none" }}
+            className="text-[11px] font-semibold uppercase tracking-widest"
+            style={{ color: "var(--text-3)", marginBottom: 8, letterSpacing: "0.06em" }}
           >
-            {briefing.indices.map((idx) => {
-              const up = idx.changePct >= 0;
-              const changeStr = (up ? "+" : "") + idx.changePct.toFixed(2) + "%";
-              return (
-                <div
-                  key={idx.label}
-                  className="min-w-[118px] shrink-0 rounded-[14px] border"
+            오늘의 헤드라인
+          </div>
+          <div
+            style={{
+              fontSize: 28,
+              fontWeight: 800,
+              lineHeight: 1.25,
+              letterSpacing: "-0.02em",
+              color: "var(--text-0)",
+            }}
+          >
+            {briefing.headlineAccent && (
+              <>
+                <span style={{ color: "var(--accent)" }}>{briefing.headlineAccent}</span>
+                <br />
+              </>
+            )}
+            {briefing.headline}
+          </div>
+          {briefing.summary.tags.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap" style={{ marginTop: 14 }}>
+              {briefing.summary.tags.map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center text-xs font-medium rounded-full border"
                   style={{
-                    padding: "10px 12px",
-                    background: "var(--bg-2)",
+                    height: 24,
+                    padding: "0 10px",
+                    background: "var(--bg-3)",
+                    color: "var(--text-1)",
                     borderColor: "var(--line)",
                   }}
                 >
-                  <div className="text-[11px] font-semibold" style={{ color: "var(--text-2)" }}>
-                    {idx.label}
-                  </div>
-                  <div
-                    className="font-mono text-sm font-semibold mt-0.5"
-                    style={{ color: "var(--text-0)" }}
-                  >
-                    {idx.value.toLocaleString()}
-                  </div>
-                  <div
-                    className="font-mono text-[11px] mt-0.5"
-                    style={{ color: up ? "var(--up)" : "var(--down)" }}
-                  >
-                    {changeStr}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                  #{t.replace(/^#/, "")}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
-        {/* Summary card */}
-        <div style={{ padding: "10px 16px 12px" }}>
+        {/* AI Full Summary */}
+        <div style={{ padding: "0 16px" }}>
           <div
             className="rounded-[20px] border"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(59,130,246,0.08) 0%, rgba(59,130,246,0) 100%)",
-              borderColor: "var(--accent-ring)",
-              padding: "18px",
-            }}
+            style={{ background: "var(--bg-2)", borderColor: "var(--line)", padding: 18 }}
           >
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2" style={{ marginBottom: 12 }}>
               <span
-                className="w-1.5 h-1.5 rounded-full"
+                className="inline-block w-1.5 h-1.5 rounded-full"
                 style={{ background: "var(--accent)" }}
               />
               <span
                 className="text-[11px] font-semibold uppercase tracking-widest"
-                style={{ color: "var(--accent)" }}
+                style={{ color: "var(--accent)", letterSpacing: "0.06em" }}
               >
-                {briefing.summary.title || "시장 요약"}
+                AI 풀 요약
+              </span>
+              <span
+                className="ml-auto text-[10px]"
+                style={{ color: "var(--text-3)", fontFamily: "var(--font-mono, monospace)" }}
+              >
+                Claude Haiku 4.5 · {generatedTime}
               </span>
             </div>
-            <p
-              className="text-[17px] font-bold leading-relaxed"
-              style={{ color: "var(--text-0)" }}
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                lineHeight: 1.55,
+                letterSpacing: "-0.01em",
+                color: "var(--text-0)",
+                marginBottom: briefing.summary.sub ? 12 : 0,
+              }}
             >
               {briefing.summary.body}
-            </p>
-            <p className="text-[13px] mt-2" style={{ color: "var(--text-1)" }}>
-              {briefing.summary.sub}
-            </p>
-            {briefing.summary.tags.length > 0 && (
-              <div className="flex gap-1.5 flex-wrap mt-3">
-                {briefing.summary.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-xs rounded-full border h-6 flex items-center px-2.5"
-                    style={{
-                      background: "var(--bg-3)",
-                      color: "var(--text-1)",
-                      borderColor: "var(--line)",
-                    }}
-                  >
-                    {tag}
-                  </span>
-                ))}
+            </div>
+            {briefing.summary.sub && (
+              <div
+                style={{
+                  fontSize: 13,
+                  lineHeight: 1.7,
+                  color: "var(--text-1)",
+                }}
+              >
+                {briefing.summary.sub}
               </div>
             )}
           </div>
@@ -221,411 +337,322 @@ export default function PostDetailPage() {
 
         {/* Causes */}
         {briefing.causes.length > 0 && (
-          <div className="px-4 mt-2">
-            <h2 className="text-lg font-bold px-1 mb-2" style={{ color: "var(--text-0)" }}>
-              핵심 원인 <span style={{ color: "var(--accent)" }}>TOP {briefing.causes.length}</span>
-            </h2>
-            <div className="flex flex-col gap-2">
+          <>
+            <div
+              className="flex items-baseline justify-between"
+              style={{ padding: "0 20px", marginTop: 24, marginBottom: 10 }}
+            >
+              <div
+                className="text-lg font-bold"
+                style={{ color: "var(--text-0)", letterSpacing: "-0.015em" }}
+              >
+                원인 분석{" "}
+                <span style={{ color: "var(--accent)" }}>TOP {briefing.causes.length}</span>
+              </div>
+            </div>
+            <div
+              style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}
+            >
               {briefing.causes.map((c) => (
                 <div
                   key={c.rank}
-                  className="flex gap-3 rounded-[14px] border"
-                  style={{
-                    padding: "14px",
-                    background: "var(--bg-2)",
-                    borderColor: "var(--line)",
-                  }}
-                >
-                  <div
-                    className="flex items-center justify-center shrink-0 w-7 h-7 rounded-lg text-sm font-bold"
-                    style={{
-                      background: c.rank === 1 ? "var(--accent)" : "var(--bg-3)",
-                      color: c.rank === 1 ? "#fff" : "var(--text-1)",
-                    }}
-                  >
-                    {c.rank}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-bold" style={{ color: "var(--text-0)" }}>
-                      {c.title}
-                    </p>
-                    <p
-                      className="text-[12px] mt-1 leading-relaxed"
-                      style={{ color: "var(--text-2)" }}
-                    >
-                      {c.desc}
-                    </p>
-                    {c.tags.length > 0 && (
-                      <div className="flex gap-1.5 mt-2 flex-wrap">
-                        {c.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="text-[10px] rounded-full border h-5 flex items-center px-2"
-                            style={{
-                              background: "var(--bg-3)",
-                              color: "var(--text-2)",
-                              borderColor: "var(--line)",
-                            }}
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Movers */}
-        {briefing.movers.length > 0 && (
-          <div className="px-4 mt-4">
-            <h2 className="text-lg font-bold px-1 mb-2" style={{ color: "var(--text-0)" }}>
-              주요 종목 변동
-            </h2>
-            <div className="flex flex-col gap-2">
-              {briefing.movers.map((mv) => {
-                const up = mv.changePct >= 0;
-                return (
-                  <Link
-                    key={mv.ticker}
-                    href={`/report/${mv.ticker}`}
-                    className="flex items-center gap-3 rounded-[14px] border"
-                    style={{
-                      padding: "12px 14px",
-                      background: "var(--bg-2)",
-                      borderColor: "var(--line)",
-                    }}
-                  >
-                    <Avatar ticker={isKR ? mv.nameKo.slice(0, 2) : mv.ticker} />
-                    <div className="flex-1 min-w-0">
-                      <div
-                        className="text-[13px] font-bold"
-                        style={{
-                          color: "var(--text-0)",
-                          fontFamily: isKR ? "var(--font-sans)" : "var(--font-mono, monospace)",
-                        }}
-                      >
-                        {isKR ? mv.nameKo : mv.ticker}
-                      </div>
-                      <div
-                        className="text-[11px] mt-0.5"
-                        style={{ color: "var(--text-3)" }}
-                      >
-                        {mv.reason}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0" style={{ minWidth: 58 }}>
-                      <div
-                        className="font-mono text-sm font-semibold"
-                        style={{ color: up ? "var(--up)" : "var(--down)" }}
-                      >
-                        {formatPct(mv.changePct)}
-                      </div>
-                      <div
-                        className="font-mono text-[11px]"
-                        style={{ color: "var(--text-2)" }}
-                      >
-                        {formatPrice(mv.price, mv.currency)}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Macros */}
-        {briefing.macros.length > 0 && (
-          <div className="px-4 mt-4">
-            <h2 className="text-lg font-bold px-1 mb-2" style={{ color: "var(--text-0)" }}>
-              매크로 지표
-            </h2>
-            <div className="grid grid-cols-2 gap-2">
-              {briefing.macros.map((macro) => (
-                <div
-                  key={macro.label}
-                  className="rounded-xl border p-3"
-                  style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
-                >
-                  <div
-                    className="text-[10px] uppercase tracking-widest font-semibold"
-                    style={{ color: "var(--text-3)" }}
-                  >
-                    {macro.label}
-                  </div>
-                  <div
-                    className="font-mono text-base font-semibold mt-1"
-                    style={{ color: "var(--text-0)" }}
-                  >
-                    {macro.value}
-                  </div>
-                  <div
-                    className="font-mono text-[11px] mt-0.5"
-                    style={{ color: macro.up ? "var(--up)" : "var(--down)" }}
-                  >
-                    {macro.delta}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Events */}
-        {briefing.events.length > 0 && (
-          <div className="px-4 mt-4">
-            <h2 className="text-lg font-bold px-1 mb-2" style={{ color: "var(--text-0)" }}>
-              주목 포인트
-            </h2>
-            <div className="flex flex-col gap-2">
-              {briefing.events.map((ev) => (
-                <div
-                  key={ev.title}
                   className="rounded-[14px] border"
-                  style={{
-                    padding: "14px",
-                    background: "var(--bg-2)",
-                    borderColor: "var(--line)",
-                  }}
+                  style={{ padding: 16, background: "var(--bg-2)", borderColor: "var(--line)" }}
                 >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span
-                      className="font-mono text-[11px] font-semibold"
-                      style={{ color: "var(--text-2)" }}
-                    >
-                      {ev.time}
-                    </span>
-                    <span
-                      className="text-[11px] font-semibold rounded-full px-2 h-5 flex items-center"
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="flex items-center justify-center shrink-0"
                       style={{
-                        background: ev.important ? "var(--accent-soft)" : "var(--bg-3)",
-                        color: ev.important ? "var(--accent)" : "var(--text-1)",
-                        border: "1px solid",
-                        borderColor: ev.important ? "var(--accent-ring)" : "var(--line)",
+                        width: 22,
+                        height: 22,
+                        borderRadius: 7,
+                        background:
+                          c.rank === 1 ? "var(--accent-soft)" : "var(--bg-3)",
+                        color: c.rank === 1 ? "var(--accent)" : "var(--text-0)",
+                        border: `1px solid ${
+                          c.rank === 1 ? "var(--accent-ring)" : "var(--line)"
+                        }`,
+                        fontFamily: "var(--font-mono, monospace)",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        marginTop: 1,
                       }}
                     >
-                      {ev.tag}
-                    </span>
+                      {c.rank}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 600,
+                          letterSpacing: "-0.01em",
+                          color: "var(--text-0)",
+                          marginBottom: 6,
+                        }}
+                      >
+                        {c.title}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                          color: "var(--text-1)",
+                          marginBottom: c.tags.length > 0 ? 10 : 0,
+                        }}
+                      >
+                        {c.desc}
+                      </div>
+                      {c.tags.length > 0 && (
+                        <div className="flex gap-1.5 flex-wrap">
+                          {c.tags.map((t) => (
+                            <span
+                              key={t}
+                              className="inline-flex items-center text-[10px] rounded border"
+                              style={{
+                                height: 18,
+                                padding: "0 6px",
+                                background: "var(--bg-3)",
+                                color: "var(--text-2)",
+                                borderColor: "var(--line)",
+                              }}
+                            >
+                              #{t.replace(/^#/, "")}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-[15px] font-bold" style={{ color: "var(--text-0)" }}>
-                    {ev.title}
-                  </p>
-                  <p className="text-[12px] mt-0.5" style={{ color: "var(--text-2)" }}>
-                    {ev.desc}
-                  </p>
                 </div>
               ))}
             </div>
-          </div>
+          </>
         )}
 
         {/* Sources */}
-        {sources && (
-          <div className="px-4 mt-6">
-            <div className="flex items-center justify-between px-1 mb-2">
-              <h2 className="text-lg font-bold" style={{ color: "var(--text-0)" }}>
-                소스 정보
-              </h2>
-              <span className="text-[11px]" style={{ color: "var(--text-3)" }}>
-                AI가 참고한 원문
-              </span>
+        {allSources.length > 0 && (
+          <>
+            <div
+              className="flex items-baseline justify-between"
+              style={{ padding: "0 20px", marginTop: 24, marginBottom: 10 }}
+            >
+              <div
+                className="text-lg font-bold"
+                style={{ color: "var(--text-0)", letterSpacing: "-0.015em" }}
+              >
+                참고 출처
+              </div>
+              <div className="text-xs" style={{ color: "var(--text-2)" }}>
+                {allSources.length}건
+              </div>
             </div>
 
-            {sources.marketNews?.length > 0 && (
-              <div className="mb-3">
-                <p
-                  className="text-[11px] font-semibold uppercase tracking-widest px-1 mb-1.5"
-                  style={{ color: "var(--text-3)" }}
-                >
-                  시장 뉴스 ({sources.marketNews.length})
-                </p>
-                <div
-                  className="rounded-[14px] border"
-                  style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
-                >
-                  {sources.marketNews.map((n, i) => (
-                    <a
-                      key={`${n.url}-${i}`}
-                      href={n.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block px-4 py-3"
-                      style={i > 0 ? { borderTop: "1px solid var(--line)" } : {}}
-                    >
-                      <div
-                        className="text-[10px] uppercase tracking-wider font-semibold"
-                        style={{ color: "var(--text-3)" }}
-                      >
-                        {n.source} · {formatRelTime(n.datetime)}
-                      </div>
-                      <div
-                        className="text-[13px] font-semibold leading-snug mt-0.5"
-                        style={{ color: "var(--text-0)" }}
-                      >
-                        {n.headline}
-                      </div>
-                      {n.summary && (
-                        <div
-                          className="text-[11px] mt-1 line-clamp-2"
-                          style={{ color: "var(--text-2)" }}
-                        >
-                          {n.summary}
-                        </div>
-                      )}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Tabs */}
+            <div
+              className="flex gap-1.5 overflow-x-auto scrollbar-none"
+              style={{
+                padding: "0 16px 8px",
+                scrollbarWidth: "none",
+              }}
+            >
+              {tabs.map((t) => {
+                const on = tab === t.id;
+                const n = counts[t.id];
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    className="shrink-0 rounded-full text-xs font-bold whitespace-nowrap border"
+                    style={{
+                      padding: "6px 12px",
+                      background: on ? "var(--accent-soft)" : "var(--bg-2)",
+                      color: on ? "var(--accent)" : "var(--text-2)",
+                      borderColor: on ? "var(--accent-ring)" : "var(--line)",
+                    }}
+                  >
+                    {t.label} <span style={{ opacity: 0.7, marginLeft: 2 }}>{n}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-            {sources.koreanNews?.length > 0 && (
-              <div className="mb-3">
-                <p
-                  className="text-[11px] font-semibold uppercase tracking-widest px-1 mb-1.5"
-                  style={{ color: "var(--text-3)" }}
-                >
-                  국내 뉴스 ({sources.koreanNews.length})
-                </p>
-                <div
-                  className="rounded-[14px] border"
-                  style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
-                >
-                  {sources.koreanNews.map((n, i) => (
-                    <div
-                      key={`${n.title}-${i}`}
-                      className="px-4 py-3"
-                      style={i > 0 ? { borderTop: "1px solid var(--line)" } : {}}
-                    >
-                      <div
-                        className="text-[10px] uppercase tracking-wider font-semibold"
-                        style={{ color: "var(--text-3)" }}
-                      >
-                        {n.source || "Google News"}
-                      </div>
-                      <div
-                        className="text-[13px] font-semibold leading-snug mt-0.5"
-                        style={{ color: "var(--text-0)" }}
-                      >
-                        {n.title}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {Object.keys(sources.companyNews ?? {}).length > 0 && (
-              <div className="mb-3">
-                <p
-                  className="text-[11px] font-semibold uppercase tracking-widest px-1 mb-1.5"
-                  style={{ color: "var(--text-3)" }}
-                >
-                  종목별 뉴스
-                </p>
-                <div className="flex flex-col gap-2">
-                  {Object.entries(sources.companyNews).map(([ticker, items]) => (
-                    items.length > 0 && (
-                      <div
-                        key={ticker}
-                        className="rounded-[14px] border"
-                        style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
-                      >
-                        <div
-                          className="px-4 py-2 font-mono text-[11px] font-bold"
-                          style={{
-                            color: "var(--text-0)",
-                            borderBottom: "1px solid var(--line)",
-                          }}
-                        >
-                          {ticker}
-                        </div>
-                        {items.map((n, i) => (
-                          <div
-                            key={`${ticker}-${n.datetime}-${i}`}
-                            className="px-4 py-2.5"
-                            style={i > 0 ? { borderTop: "1px solid var(--line)" } : {}}
-                          >
-                            <div
-                              className="text-[10px] uppercase tracking-wider font-semibold"
-                              style={{ color: "var(--text-3)" }}
-                            >
-                              {n.source} · {formatRelTime(n.datetime)}
-                            </div>
-                            <div
-                              className="text-[12px] font-semibold leading-snug mt-0.5"
-                              style={{ color: "var(--text-0)" }}
-                            >
-                              {n.headline}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {sources.economicEvents?.length > 0 && (
-              <div className="mb-3">
-                <p
-                  className="text-[11px] font-semibold uppercase tracking-widest px-1 mb-1.5"
-                  style={{ color: "var(--text-3)" }}
-                >
-                  경제 일정 ({sources.economicEvents.length})
-                </p>
-                <div
-                  className="rounded-[14px] border"
-                  style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
-                >
-                  {sources.economicEvents.map((e, i) => (
-                    <div
-                      key={`${e.event}-${i}`}
-                      className="px-4 py-2.5 flex items-baseline gap-2"
-                      style={i > 0 ? { borderTop: "1px solid var(--line)" } : {}}
-                    >
-                      <span
-                        className="font-mono text-[11px] shrink-0"
-                        style={{ color: "var(--text-2)" }}
-                      >
-                        {e.time || "—"}
-                      </span>
-                      <span
-                        className="text-[12px] flex-1"
-                        style={{ color: "var(--text-0)" }}
-                      >
-                        {e.event}
-                      </span>
-                      <span
-                        className="text-[10px] uppercase font-semibold shrink-0"
+            {/* Source list */}
+            <div style={{ padding: "0 16px" }}>
+              <div
+                className="rounded-[14px] border overflow-hidden"
+                style={{ background: "var(--bg-2)", borderColor: "var(--line)" }}
+              >
+                {filtered.length === 0 ? (
+                  <div
+                    className="text-center text-xs"
+                    style={{ padding: "20px 14px", color: "var(--text-3)" }}
+                  >
+                    이 카테고리의 출처가 없습니다
+                  </div>
+                ) : (
+                  filtered.map((s, i) => {
+                    const meta = TYPE_ICON[s.type];
+                    const Wrapper = s.url ? "a" : "div";
+                    return (
+                      <Wrapper
+                        key={s.key}
+                        {...(s.url ? { href: s.url, target: "_blank", rel: "noreferrer" } : {})}
+                        className="grid items-start"
                         style={{
-                          color: e.impact === "high" ? "var(--up)" : "var(--text-3)",
+                          gridTemplateColumns: "24px 1fr",
+                          gap: 10,
+                          padding: "14px",
+                          borderTop: i > 0 ? "1px solid var(--line)" : "none",
                         }}
                       >
-                        {e.impact}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                        <div
+                          className="flex items-center justify-center"
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: 6,
+                            marginTop: 2,
+                            background: meta.bg,
+                            border: `1px solid ${meta.border}`,
+                            fontSize: 11,
+                          }}
+                        >
+                          {meta.emoji}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            className="flex items-center gap-1.5"
+                            style={{ marginBottom: 4 }}
+                          >
+                            <span
+                              className="text-[11px] font-bold"
+                              style={{ color: "var(--text-1)" }}
+                            >
+                              {s.source}
+                            </span>
+                            {s.time && (
+                              <>
+                                <span
+                                  style={{
+                                    width: 2,
+                                    height: 2,
+                                    borderRadius: 1,
+                                    background: "var(--text-3)",
+                                  }}
+                                />
+                                <span
+                                  className="text-[10px]"
+                                  style={{
+                                    color: "var(--text-3)",
+                                    fontFamily: "var(--font-mono, monospace)",
+                                  }}
+                                >
+                                  {s.time}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              lineHeight: 1.4,
+                              color: "var(--text-0)",
+                              marginBottom: s.value ? 6 : 0,
+                            }}
+                          >
+                            {s.title}
+                          </div>
+                          {s.value && (
+                            <div
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: "var(--accent)",
+                                fontFamily: "var(--font-mono, monospace)",
+                              }}
+                            >
+                              {s.value}
+                            </div>
+                          )}
+                        </div>
+                      </Wrapper>
+                    );
+                  })
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          </>
         )}
 
-        {/* Footer */}
-        <div className="mt-6 mx-4 mb-2">
-          <p
-            className="text-[11px] leading-relaxed text-center"
-            style={{ color: "var(--text-3)" }}
+        {/* Pipeline metadata */}
+        <div
+          className="flex items-baseline justify-between"
+          style={{ padding: "0 20px", marginTop: 24, marginBottom: 10 }}
+        >
+          <div
+            className="text-lg font-bold"
+            style={{ color: "var(--text-0)", letterSpacing: "-0.015em" }}
           >
-            AI가 뉴스·시장 데이터를 해석한 결과이며 투자 조언이 아닙니다.
-            <br />
-            데이터 출처: Finnhub, Google News, FRED.
-          </p>
+            생성 정보
+          </div>
+        </div>
+        <div style={{ padding: "0 16px" }}>
+          <div
+            className="rounded-[14px] border"
+            style={{ background: "var(--bg-2)", borderColor: "var(--line)", padding: 14 }}
+          >
+            {[
+              { k: "모델", v: "Claude Haiku 4.5", mono: false },
+              { k: "수집 시각", v: formatDateTime(startedAt), mono: true },
+              { k: "생성 시각", v: finishedAt ? formatDateTime(finishedAt) : "—", mono: true },
+              { k: "소요 시간", v: durationStr, mono: true },
+              {
+                k: "토큰 사용",
+                v: tokenUsage
+                  ? `in ${tokenUsage.input.toLocaleString()} / out ${tokenUsage.output.toLocaleString()}`
+                  : "—",
+                mono: true,
+              },
+              { k: "뉴스 소스", v: "Finnhub · Google News · FRED", mono: false },
+            ].map((row, i, arr) => (
+              <div
+                key={row.k}
+                className="flex justify-between items-center"
+                style={{
+                  padding: "8px 0",
+                  borderBottom: i < arr.length - 1 ? "1px solid var(--line)" : "none",
+                }}
+              >
+                <span className="text-xs" style={{ color: "var(--text-2)" }}>
+                  {row.k}
+                </span>
+                <span
+                  className="text-xs font-semibold"
+                  style={{
+                    color: "var(--text-1)",
+                    fontFamily: row.mono ? "var(--font-mono, monospace)" : "inherit",
+                  }}
+                >
+                  {row.v}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Disclaimer */}
+        <div
+          style={{
+            padding: "20px 20px 10px",
+            fontSize: 10,
+            color: "var(--text-3)",
+            lineHeight: 1.55,
+            letterSpacing: "0.01em",
+          }}
+        >
+          AI가 수집된 1차 자료를 바탕으로 생성한 요약입니다. 인용된 출처를 직접 확인하시는 것을
+          권장합니다.
         </div>
       </div>
 

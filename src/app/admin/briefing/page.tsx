@@ -20,7 +20,7 @@ export default async function AdminBriefingPage() {
         <header>
           <h1 className="text-2xl font-bold">브리핑 배치 관리</h1>
           <p className="text-sm text-gray-400 mt-1">
-            수동 트리거 + 최근 실행 이력. Vercel Cron 1일 3회: us_close (07:00 KST), us_pre (20:00 KST), kr_close (16:00 KST).
+            수동 트리거 + 최근 실행 이력. Vercel Cron 1일 3회: us_close (06:00 KST), us_pre (20:00 KST), kr_close (18:00 KST).
           </p>
         </header>
 

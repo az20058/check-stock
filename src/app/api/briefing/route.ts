@@ -7,8 +7,9 @@ export const revalidate = 300; // 5분 ISR — 데이터는 배치 때만 변경
 
 function resolveCurrentSessions(): { us: BriefingSession; kr: BriefingSession } {
   const kstHour = (new Date().getUTCHours() + 9) % 24;
+  // us_close 배치는 06:00 KST, us_pre는 20:00 KST에 도착 — 그 사이엔 us_close가 최신
   return {
-    us: kstHour >= 7 && kstHour < 20 ? "us_close" : "us_pre",
+    us: kstHour >= 6 && kstHour < 20 ? "us_close" : "us_pre",
     kr: "kr_close",
   };
 }

@@ -34,6 +34,9 @@ import {
 } from "@/lib/briefing/schema";
 import type { RawSources, KrRawSources, TokenUsage } from "@/lib/briefing/types";
 import type { MacroItem } from "@/types/stock";
+import { retrieve } from "@/lib/rag/retrieve";
+import { getStockMeta } from "@/lib/data/stock-meta";
+import type { CompanyNewsItem } from "@/lib/collectors/company-news";
 
 export interface MoverMeta {
   ticker: string;
@@ -68,6 +71,45 @@ function toDateLabel(iso: string, session: BriefingSession): string {
     session === "us_close" ? "장마감 04:00 ET" :
     "장 시작 전 · 프리마켓";
   return `${month}월 ${day}일 ${wd}요일 · ${suffix}`;
+}
+
+/**
+ * RAG: 의미적으로 가까운 뉴스를 retrieve하여 기존 뉴스에 머지.
+ * 첫 배치에는 DB가 비어있으므로 retrieved=[] → 기존 뉴스만 반환.
+ * 검색 실패 시 기존 뉴스로 폴백 (절대 throw 안 함).
+ */
+async function augmentWithRag(
+  m: MoverMeta,
+  existing: CompanyNewsItem[],
+): Promise<CompanyNewsItem[]> {
+  try {
+    const meta = getStockMeta(m.ticker);
+    const direction = m.changePct >= 0 ? "상승" : "하락";
+    const query = `${m.nameKo} ${meta?.sector ?? ""} 주가 ${direction} 실적 호재 악재`;
+    // 1차: ticker로 필터
+    let docs = await retrieve(query, { ticker: m.ticker, topK: 5, daysBack: 7 });
+    // 2차: ticker로 매칭 안 되면 (ex: KR 뉴스는 ticker=null로 ingest됨) 종목명 쿼리로 검색
+    if (docs.length === 0) {
+      docs = await retrieve(`${m.nameKo} ${m.ticker}`, { ticker: null, topK: 3, daysBack: 7 });
+    }
+    const seen = new Set(existing.map((n) => n.headline));
+    const merged: CompanyNewsItem[] = [...existing];
+    for (const d of docs) {
+      if (seen.has(d.headline)) continue;
+      seen.add(d.headline);
+      merged.push({
+        ticker: m.ticker,
+        headline: d.headline,
+        summary: d.summary ?? "",
+        datetime: Math.floor(new Date(d.publishedAt).getTime() / 1000),
+        source: d.source,
+      });
+    }
+    return merged.slice(0, 8);
+  } catch (err) {
+    console.error(`[pipeline] rag augment failed for ${m.ticker}:`, err);
+    return existing;
+  }
 }
 
 async function runMoverReason(
@@ -107,7 +149,7 @@ export async function runAiPipeline(args: {
 }): Promise<PipelineOutput> {
   const emptyBriefing: MarketBriefingPipeline = {
     dateLabel: "", headline: "", headlineAccent: "",
-    summary: { title: "", body: "", sub: "", tags: [] },
+    summary: { title: "", body: "", sub: "", longBody: "", koreanContext: "", tags: [] },
     causes: [], movers: [], events: [], macros: [],
   };
 
@@ -144,7 +186,7 @@ export async function runAiPipeline(args: {
         ? "오늘 밤 미국 시장 프리뷰를 제출한다"
         : "오늘의 미국 시장 요약 결과를 제출한다",
       inputSchema: marketSummaryJsonSchema,
-      maxTokens: 800,
+      maxTokens: 2000,
     });
     addUsage(usSummaryRes.usage);
     let usSummary: MarketSummary;
@@ -156,11 +198,12 @@ export async function runAiPipeline(args: {
       throw e;
     }
 
-    // 2. US mover reasons in parallel
+    // 2. US mover reasons in parallel — RAG로 기존 뉴스 보강 후 호출
     const usMoverResults = await Promise.all(
-      args.usMovers.map((m) =>
-        runMoverReason(m, args.usSources.companyNews[m.ticker] ?? [], addUsage),
-      ),
+      args.usMovers.map(async (m) => {
+        const augmented = await augmentWithRag(m, args.usSources.companyNews[m.ticker] ?? []);
+        return runMoverReason(m, augmented, addUsage);
+      }),
     );
 
     // 3. Events
@@ -220,9 +263,10 @@ export async function runAiPipeline(args: {
   }
 
   const krMoverResults = await Promise.all(
-    args.krMovers.map((m) =>
-      runMoverReason(m, args.krSources.companyNews[m.ticker] ?? [], addUsage),
-    ),
+    args.krMovers.map(async (m) => {
+      const augmented = await augmentWithRag(m, args.krSources.companyNews[m.ticker] ?? []);
+      return runMoverReason(m, augmented, addUsage);
+    }),
   );
 
   return {

@@ -83,6 +83,8 @@ function normalizeBriefing(
       title: str(raw.summary?.title),
       body: str(raw.summary?.body),
       sub: str(raw.summary?.sub),
+      longBody: typeof raw.summary?.longBody === "string" ? raw.summary.longBody : undefined,
+      koreanContext: typeof raw.summary?.koreanContext === "string" ? raw.summary.koreanContext : undefined,
       tags: Array.isArray(raw.summary?.tags) ? raw.summary.tags.filter((t: unknown) => typeof t === "string") : [],
     },
     movers: Array.isArray(raw.movers) ? raw.movers.map((m: unknown) => normalizeMover(m, market)) : [],

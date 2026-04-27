@@ -56,6 +56,10 @@ export interface MarketBriefing {
     title: string;
     body: string;
     sub: string;
+    /** 상세 페이지용 3문단 풀 요약 (구레코드 호환을 위해 optional) */
+    longBody?: string;
+    /** 한국 투자자 시각 박스 (구레코드 호환을 위해 optional) */
+    koreanContext?: string;
     tags: string[];
   };
   movers: (Stock & { reason: string })[];

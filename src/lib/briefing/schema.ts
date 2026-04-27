@@ -8,6 +8,8 @@ export const marketSummarySchema = z.object({
     title: z.string().min(1),
     body: z.string().min(1),
     sub: z.string().min(1),
+    longBody: z.string().min(1),
+    koreanContext: z.string().min(1),
     tags: z.array(z.string()).min(1).max(4),
   }),
   causes: z.array(z.object({
@@ -49,8 +51,18 @@ export const marketSummaryJsonSchema = {
       type: "object",
       properties: {
         title: { type: "string" },
-        body: { type: "string", description: "핵심 한 문장 (50~80자)" },
-        sub: { type: "string", description: "보조 설명 1~2문장" },
+        body: { type: "string", description: "핵심 한 문장 (50~80자) — 메인 카드용 강조 lead" },
+        sub: { type: "string", description: "보조 설명 1~2문장 (메인 카드 본문)" },
+        longBody: {
+          type: "string",
+          description:
+            "상세 페이지용 풀 요약 — 정확히 3문단, 단락 사이는 \\n\\n으로 구분. 각 문단 80~140자. 1) 핵심 사건과 지수/주요 종목 변동, 2) 원인 분석과 섹터 반응, 3) 한국 투자자가 볼 시사점.",
+        },
+        koreanContext: {
+          type: "string",
+          description:
+            "'한국 투자자 시각' 박스에 들어갈 60~120자 — 미국 장 → 국내 영향 가교, 또는 한국 시장 → 글로벌 맥락. 1~2문장.",
+        },
         tags: {
           type: "array",
           items: { type: "string", description: "# 접두사 포함 해시태그" },
@@ -58,7 +70,7 @@ export const marketSummaryJsonSchema = {
           maxItems: 4,
         },
       },
-      required: ["title", "body", "sub", "tags"],
+      required: ["title", "body", "sub", "longBody", "koreanContext", "tags"],
     },
     causes: {
       type: "array",

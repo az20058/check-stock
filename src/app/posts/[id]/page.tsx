@@ -316,20 +316,62 @@ export default function PostDetailPage() {
                 lineHeight: 1.55,
                 letterSpacing: "-0.01em",
                 color: "var(--text-0)",
-                marginBottom: briefing.summary.sub ? 12 : 0,
+                marginBottom: 12,
               }}
             >
               {briefing.summary.body}
             </div>
-            {briefing.summary.sub && (
+            {(() => {
+              const long = briefing.summary.longBody?.trim();
+              const fallback = briefing.summary.sub;
+              const paragraphs = long
+                ? long.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+                : fallback
+                  ? [fallback]
+                  : [];
+              if (paragraphs.length === 0) return null;
+              return (
+                <div
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.7,
+                    color: "var(--text-1)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                  }}
+                >
+                  {paragraphs.map((p, i) => (
+                    <p key={i} style={{ margin: 0 }}>
+                      {p}
+                    </p>
+                  ))}
+                </div>
+              );
+            })()}
+            {briefing.summary.koreanContext && (
               <div
+                className="rounded-[10px] border"
                 style={{
-                  fontSize: 13,
-                  lineHeight: 1.7,
-                  color: "var(--text-1)",
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  background: "var(--bg-3)",
+                  borderColor: "var(--line)",
                 }}
               >
-                {briefing.summary.sub}
+                <div
+                  className="text-[11px] font-semibold uppercase tracking-widest"
+                  style={{
+                    color: "var(--text-3)",
+                    letterSpacing: "0.06em",
+                    marginBottom: 4,
+                  }}
+                >
+                  한국 투자자 시각
+                </div>
+                <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--text-1)" }}>
+                  {briefing.summary.koreanContext}
+                </div>
               </div>
             )}
           </div>

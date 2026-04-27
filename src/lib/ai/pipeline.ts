@@ -2,12 +2,23 @@ import "server-only";
 import { callClaudeJson } from "@/lib/clients/anthropic";
 import type { BriefingSession } from "@/types/stock";
 
-/** Claude가 XML 태그를 섞어 출력하는 경우 headline 정리 */
+/** Haiku가 schema를 어겨 summary를 stringify하거나 headline에 XML을 섞는 경우를 정상화 */
 function sanitizeRawSummary(raw: Record<string, unknown>): Record<string, unknown> {
   const headline = typeof raw.headline === "string" ? raw.headline : "";
-  // headline에 XML/HTML 태그가 포함된 경우 제거
   const cleaned = headline.replace(/<[^>]*>/g, "").replace(/\\n/g, " ").replace(/"+$/, "").trim();
-  return { ...raw, headline: cleaned || headline };
+
+  // summary가 stringify된 JSON으로 온 경우 객체로 복구
+  let summary: unknown = raw.summary;
+  if (typeof summary === "string") {
+    try {
+      const parsed = JSON.parse(summary);
+      if (parsed && typeof parsed === "object") summary = parsed;
+    } catch {
+      // JSON.parse 실패 — 그대로 두고 zod에서 명확히 reject
+    }
+  }
+
+  return { ...raw, headline: cleaned || headline, summary };
 }
 import {
   marketSummarySystem,
@@ -240,7 +251,7 @@ export async function runAiPipeline(args: {
   // kr_close
   const krDateLabel = toDateLabel(args.krSources.collectedAt, args.session);
 
-  const krSummaryRes = await callClaudeJson<unknown>({
+  const krSummaryArgs = {
     system: krMarketSummarySystem,
     user: buildKrMarketSummaryUser({
       koreanMarketNews: args.krSources.koreanMarketNews,
@@ -251,15 +262,34 @@ export async function runAiPipeline(args: {
     toolDescription: "오늘의 한국 시장 요약 결과를 제출한다",
     inputSchema: marketSummaryJsonSchema,
     maxTokens: 2000,
-  });
-  addUsage(krSummaryRes.usage);
-  let krSummary: MarketSummary;
-  try {
-    const sanitized = sanitizeRawSummary(krSummaryRes.data as Record<string, unknown>);
-    krSummary = marketSummarySchema.parse(sanitized);
-  } catch (e) {
-    console.error("[pipeline] KR summary parse failed:", e, "raw:", JSON.stringify(krSummaryRes.data));
-    throw e;
+  };
+
+  let krSummary: MarketSummary | null = null;
+  let lastRaw: unknown = null;
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const res = await callClaudeJson<unknown>(krSummaryArgs);
+    addUsage(res.usage);
+    lastRaw = res.data;
+    try {
+      const sanitized = sanitizeRawSummary(res.data as Record<string, unknown>);
+      krSummary = marketSummarySchema.parse(sanitized);
+      break;
+    } catch (e) {
+      lastErr = e;
+      console.error(
+        `[pipeline] KR summary parse failed (attempt ${attempt}):`,
+        e,
+        "raw:",
+        JSON.stringify(res.data),
+      );
+    }
+  }
+  if (!krSummary) {
+    const rawPreview = JSON.stringify(lastRaw).slice(0, 400);
+    throw new Error(
+      `KR summary schema fail after 2 attempts: ${lastErr instanceof Error ? lastErr.message : String(lastErr)} | raw: ${rawPreview}`,
+    );
   }
 
   const krMoverResults = await Promise.all(

@@ -8,14 +8,22 @@ export const dynamic = "force-dynamic";
 
 const VALID_SESSIONS = new Set<BriefingSession>(["us_close", "us_pre", "kr_close"]);
 
-/** 토요일 07:00 KST ~ 월요일 00:00 KST 사이면 true (주말 장 휴무) */
+/**
+ * 주말 동결 윈도우: 토요일 06:00 KST 배치 이후부터 월요일 06:00 KST 배치까지 모두 건너뛴다.
+ * - 토 06:00 us_close (금요일 美 마감 브리핑) — 실행 (마지막 배치)
+ * - 토 06:00 이후 ~ 일 23:59 — 스킵 (장 휴무)
+ * - 월 00:00 ~ 06:59 — 스킵 (월 06:00 us_close 포함)
+ * - 월 18:00 kr_close — 실행 (동결 해제 후 첫 배치)
+ */
 function isWeekendOff(): boolean {
   const now = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }),
   );
-  const day = now.getDay(); // 0=Sun, 6=Sat
+  const day = now.getDay(); // 0=Sun, 1=Mon, 6=Sat
+  const hour = now.getHours();
   if (day === 0) return true; // 일요일 전체
-  if (day === 6 && now.getHours() >= 7) return true; // 토요일 07시 이후
+  if (day === 6 && hour >= 7) return true; // 토 06시 배치 이후
+  if (day === 1 && hour < 7) return true; // 월 06시 배치까지 포함 스킵
   return false;
 }
 

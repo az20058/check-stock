@@ -16,8 +16,9 @@ http://localhost:3000
 
 | 경로 | 설명 |
 |---|---|
-| `/` | 미국·한국 시장 브리핑 (헤드라인, 무버스, 매크로, 이벤트, 원인 TOP3) |
-| `/watchlist` | 로컬 저장 관심 종목 — 시세는 Finnhub 폴링 |
+| `/` | 미국·한국 시장 브리핑 (헤드라인, 무버스, 매크로, 이벤트, 원인 TOP3, 시장별 최근 포스트 목록) |
+| `/posts/[id]` | 브리핑 상세 — 풀 요약(3문단 longBody) · 한국 투자자 시각 박스 · 원인 TOP3(임팩트·근거 건수) · 참고 출처(영문/한국 뉴스·매크로·이벤트 탭) · 생성 메타데이터 |
+| `/watchlist` | 로컬 저장 관심 종목 — 첫 진입 시 0개로 시작, 빈 상태일 땐 등록 가이드 카드 노출. 시세는 Finnhub 폴링 |
 | `/search` | 종목 검색 — 일반 주식 + ETF/레버리지(TSLL 등) 포함 |
 | `/report/[ticker]` | 종목 상세 — Claude 요약, 등락 원인 TOP3, 섹터 비교, 차트 |
 | `/admin/briefing` | 배치 수동 트리거·이력 (Basic Auth) |
@@ -28,13 +29,16 @@ http://localhost:3000
 - `FINNHUB_API_KEY` — 주가·뉴스·종목 검색
 - `FRED_API_KEY` — 매크로 지표(10Y, DXY, WTI)
 - `ANTHROPIC_API_KEY` — Claude (요약·원인 분석)
-- `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` — 배치 결과 저장
+- `VOYAGE_API_KEY` — Voyage AI 임베딩 (RAG ingest/retrieve, `voyage-3` 1024차원)
+- `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` — 배치 결과·뉴스 임베딩 저장
 - `CRON_SECRET` — Vercel Cron 인증
-- `ADMIN_PASSWORD` — `/admin/*` Basic Auth
+- `ADMIN_PASSWORD` — `/admin/*`·`/api/admin/*` Basic Auth (Edge Runtime 호환을 위해 Node `crypto` 미사용)
 
 ## 배치 파이프라인
 
-**구조**: cron이 세션별로 뉴스·매크로·캘린더를 수집 → Claude가 한국어 요약·무버스·원인 생성 → Supabase에 스냅샷 저장. `/api/briefing`은 저장된 스냅샷을 읽어 응답하며 **5분 ISR**로 캐시(실시간 시세 오버레이 없음 — 데이터는 배치 시점 기준).
+**구조**: cron이 세션별로 뉴스·매크로·캘린더를 수집 → 수집 뉴스를 Voyage 임베딩으로 `news_embeddings`에 적재(RAG ingest, 실패해도 배치 비차단) → Claude가 무버스별 RAG 검색으로 보강된 컨텍스트로 한국어 요약·원인·무버 reason 생성 → Supabase에 스냅샷 저장. `/api/briefing`은 저장된 스냅샷을 읽어 응답하며 **5분 ISR**로 캐시(실시간 시세 오버레이 없음 — 데이터는 배치 시점 기준).
+
+**요약 스키마**: `summary.body`(메인 카드 lead 50~80자) + `summary.longBody`(상세 페이지 3문단, 문단당 100~160자, 구체 수치·종목 등락률·발표 주체 인용 강제) + `summary.koreanContext`(한국 투자자 시각 60~120자) + `causes` TOP3(`title`·`desc`·`impact`(섹터 등락폭)·`evidence`(근거 건수)·`tags`).
 
 ### 세션 구분
 
@@ -57,14 +61,17 @@ create table public.briefing_runs (
   finished_at timestamptz,
   status text not null default 'running',
   triggered_by text not null,
+  session text,                   -- 'us_close' | 'us_pre' | 'kr_close'
   error text,
   raw_sources jsonb,
-  briefing_data jsonb,
+  briefing_data jsonb,            -- { us: MarketBriefing, kr: MarketBriefing }
   token_usage jsonb
 );
 create index briefing_runs_started_idx on public.briefing_runs (started_at desc);
 alter table public.briefing_runs enable row level security;
 ```
+
+이어서 RAG용 `news_embeddings` 테이블·`match_news` RPC를 `db/migrations/0001_news_embeddings.sql`·`0002_fix_unique_constraint.sql` 순서대로 실행한다 (pgvector 확장 + 1024차원 임베딩 + 코사인 유사도 검색).
 
 RLS 활성화 + policy 없음 → `service_role` 키만 접근 가능.
 
@@ -86,34 +93,40 @@ RLS 활성화 + policy 없음 → `service_role` 키만 접근 가능.
 - 탭바 fixed + body `overflow:hidden`으로 pull-to-refresh 간섭 제거
 - 홈 화면 추가 시 standalone 모드로 동작
 
-## 테스트
+## 테스트·검증
 
 ```bash
-npm run test           # vitest (유틸 단위 테스트)
+npm test               # vitest (유틸 단위 테스트)
 npx eslint             # lint
 npx tsc --noEmit       # typecheck
 ```
+
+UI 변경 시 Playwright 스크린샷으로 화면 확인 후 커밋 (`CLAUDE.md` 참조).
 
 ## 아키텍처 요약
 
 ```
 src/lib/
-  clients/       — Finnhub, FRED, Anthropic, Supabase SDK 래퍼
-  collectors/    — 뉴스·매크로·캘린더 수집기 (Finnhub/FRED 직접 호출)
-  ai/            — 프롬프트, Claude 호출 파이프라인
-  briefing/      — 배치 플로우(build), 저장(storage), 스키마(zod)
+  clients/       — Finnhub, FRED, Anthropic, Voyage(embedding), Supabase, Yahoo SDK 래퍼
+  collectors/    — 뉴스·매크로·캘린더 수집기 (Finnhub/FRED/Google News 직접 호출)
+  ai/            — 프롬프트(US 마감/US 프리/KR 마감 3종), Claude 호출 파이프라인 (RAG 보강)
+  rag/           — Voyage 임베딩 ingest / pgvector retrieve (news_embeddings 테이블 + match_news RPC)
+  briefing/      — 배치 플로우(build), 저장(storage), 스키마(zod + JSON Schema)
   report/        — 종목 상세 리포트 생성 (Claude 분석 + Finnhub 데이터)
   data/          — 종목 메타데이터 (티커→이름·섹터·거래소)
 
 src/app/api/
-  briefing/              — 프론트용 엔드포인트 (Supabase 읽기, 5분 ISR)
-  cron/briefing/         — Vercel Cron 진입점 (CRON_SECRET, 주말 스킵)
-  admin/briefing/        — 수동 트리거, 히스토리 조회
+  briefing/              — 프론트용 최신 스냅샷 (Supabase 읽기, 5분 ISR)
+  posts/                 — 브리핑 포스트 목록 / posts/[id] 단건 상세
+  cron/briefing/         — Vercel Cron 진입점 (CRON_SECRET Bearer, 주말 동결 스킵)
+  admin/briefing/        — 수동 트리거, 히스토리 조회 (Basic Auth)
   stocks/[ticker]/report — 종목 상세 리포트 생성
   stocks/quotes          — 시세 폴링용 일괄 조회
   stocks/search          — 종목 검색 (Finnhub symbol search)
 
-src/app/                 — /, /watchlist, /search, /report/[ticker], /admin/briefing, /offline
+src/app/                 — /, /posts/[id], /watchlist, /search, /report/[ticker], /admin/briefing, /offline
 src/components/          — TabBar, PriceChart, Sparkline, Avatar, Pct, ServiceWorkerRegister
-src/middleware.ts        — /admin/*·/api/admin/* Basic Auth
+src/middleware.ts        — /admin/*·/api/admin/* Basic Auth (Edge Runtime, 순수 JS 상수시간 비교)
+
+db/migrations/           — Supabase 초기 스키마 (news_embeddings + match_news RPC)
 ```

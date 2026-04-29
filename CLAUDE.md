@@ -15,25 +15,57 @@ Next.js (App Router) 기반 취업 준비 관리 앱. UI는 shadcn/ui + Tailwind
    - 레이아웃 깨짐·의도치 않은 변경 없으면 다음 단계 진행
 4. **커밋/푸시**: lint·tsc·리뷰·UI 검증 통과 후 확인 없이 `git add && git commit && git push origin master` 한 번에 실행
 
-## 에이전트 팀 구성 (필요 시 복붙)
+## 서브 에이전트 오케스트레이션
 
-대형 기능 구현·병렬 작업이 필요할 때만 사용. 토큰 비용이 높으므로 일반 작업은 단일 세션 권장.
+`.claude/agents/`에 4개 전문 에이전트가 정의되어 있다. Task 도구로 호출한다.
 
-**사전 조건**: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` 활성화 필요 (settings.json)
+| 에이전트        | 담당                                    | 도구 권한                       |
+| --------------- | --------------------------------------- | ------------------------------- |
+| `code-reviewer` | 품질·SOLID·보안·사이드 이펙트 검토      | 읽기 전용 (Read/Grep/Glob/Bash) |
+| `frontend`      | UI·페이지·컴포넌트·클라이언트 훅        | 편집 가능                       |
+| `backend`       | API Route·Server Action·Prisma·미들웨어 | 편집 가능                       |
+| `qa-tester`     | Playwright 스크린샷·e2e 시각 검증       | 읽기 전용                       |
 
-```
-Create an agent team with 4 teammates. Start npm run dev in the background first if not running.
+### 사용 트리거 (이 규칙을 엄격히 따른다)
 
-1. code-reviewer: Review code quality, SOLID principles, security vulnerabilities, and side effects. Use grep to find all callers of modified functions. Run npx eslint and npx tsc --noEmit. Report issues with severity ratings.
+**기본값: 단일 세션.** 아래 조건을 만족하지 않는 한 서브 에이전트를 디스패치하지 않는다.
 
-2. frontend: Implement UI using Next.js App Router, shadcn/ui, Tailwind CSS. Check components/ui/ and _components/ before creating new ones. Follow docs/claude/components.md and docs/claude/hooks.md.
+**🚫 무조건 단일 세션 강제 (안티-트리거)**
 
-3. backend: Handle API routes, middleware, server-side logic. Follow docs/claude/nextjs.md and docs/claude/state.md conventions.
+다음 중 하나라도 해당하면 서브 에이전트를 사용하지 않는다:
 
-4. qa-tester: Verify UI with Playwright. Take screenshots with npx playwright screenshot, read images to confirm layout. Run npx playwright test for e2e. Report any visual regressions.
+- 버그 수정 (스코프가 한 파일 또는 한 함수)
+- 문서·README·주석·설정 파일(`.json`, `.env*`, `*.md`)만 변경
+- 단순 리팩터링 (이름 변경, 함수 추출, import 정리)
+- 작업 간 의존성이 강해 순차로만 가능한 경우 (A 결과로 B를 결정)
+- 사용자가 "빠르게", "간단히", "단일로" 같은 단어를 명시한 경우
 
-Require plan approval before any teammate makes changes. Each teammate owns separate files to avoid conflicts.
-```
+**✅ 사용자 명시 키워드 (opt-in)**
+
+사용자 메시지에 다음 중 하나가 포함되면 팀/병렬 모드로 진입:
+
+- "팀으로", "병렬로", "오케스트레이션", "team", "parallel"
+- 또는 명시적 에이전트 지정 ("code-reviewer로 리뷰", "qa-tester로 검증")
+
+**🟢 자동 디스패치가 허용되는 경우 (1개 에이전트만)**
+
+키워드가 없어도 다음 단일 작업은 해당 에이전트를 호출 가능:
+
+- 코드 변경 직후 사용자가 "리뷰해줘"라고 요청 → `code-reviewer`
+- UI 변경 후 시각 검증 단계 → `qa-tester`
+
+**⚠️ 풀 팀(병렬)은 명시 키워드 없이 절대 자동 진입 금지.** 키워드 + 아래 객관 조건 2개 이상 충족 시에만:
+
+- [ ] 수정 파일이 3개 이상
+- [ ] 서로 다른 레이어(UI / API / DB)를 동시에 건드림
+- [ ] 작업 간 의존성이 약함 (병렬 실행해도 결과 동일)
+
+### 호출 규칙
+
+- 병렬 호출은 **단일 메시지에 여러 Task tool call을 동시에** 넣어야 실제 병렬 실행됨
+- 같은 파일을 두 에이전트가 편집하지 않도록 메인이 파일 소유권을 명시 (충돌 방지)
+- 각 에이전트는 cold start이므로 프롬프트에 **목표·제약·관련 파일 경로**를 자기충족적으로 포함
+- 결과 종합·충돌 해결은 메인 세션이 담당
 
 ---
 
@@ -41,10 +73,10 @@ Require plan approval before any teammate makes changes. Each teammate owns sepa
 
 코드 작성 전, 해당되는 문서를 읽고 따른다:
 
-| 해당 조건 | 읽을 파일 |
-|-----------|-----------|
-| Next.js API·라우팅·미들웨어를 수정할 때 | `docs/claude/nextjs.md` |
+| 해당 조건                                                | 읽을 파일                   |
+| -------------------------------------------------------- | --------------------------- |
+| Next.js API·라우팅·미들웨어를 수정할 때                  | `docs/claude/nextjs.md`     |
 | `components/ui/` 파일을 수정하거나 새 컴포넌트를 만들 때 | `docs/claude/components.md` |
-| `useEffect`, `useState`, 커스텀 훅을 작성할 때 | `docs/claude/hooks.md` |
-| props를 3단계 이상 전달하거나 zustand 스토어를 다룰 때 | `docs/claude/state.md` |
-| 새 기능을 구현할 때 (버그 수정 제외) | `docs/claude/testing.md` |
+| `useEffect`, `useState`, 커스텀 훅을 작성할 때           | `docs/claude/hooks.md`      |
+| props를 3단계 이상 전달하거나 zustand 스토어를 다룰 때   | `docs/claude/state.md`      |
+| 새 기능을 구현할 때 (버그 수정 제외)                     | `docs/claude/testing.md`    |

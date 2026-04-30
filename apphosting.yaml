@@ -1,0 +1,27 @@
+# Firebase App Hosting 런타임 설정
+# 문서: https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 3
+  concurrency: 80
+
+env:
+  - variable: FINNHUB_API_KEY
+    secret: FINNHUB_API_KEY
+  - variable: FRED_API_KEY
+    secret: FRED_API_KEY
+  - variable: ANTHROPIC_API_KEY
+    secret: ANTHROPIC_API_KEY
+  - variable: VOYAGE_API_KEY
+    secret: VOYAGE_API_KEY
+  - variable: SUPABASE_URL
+    secret: SUPABASE_URL
+  - variable: SUPABASE_SERVICE_ROLE_KEY
+    secret: SUPABASE_SERVICE_ROLE_KEY
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
+  - variable: ADMIN_PASSWORD
+    secret: ADMIN_PASSWORD

@@ -20,6 +20,7 @@ import {
   buildMoverReasonUser,
   eventsSystem,
   buildEventsUser,
+  type PreMarketSnapshot,
 } from "./prompts";
 import {
   marketSummarySchema,
@@ -104,6 +105,8 @@ export async function runAiPipeline(args: {
   usMovers: MoverMeta[];
   krMovers: MoverMeta[];
   session: BriefingSession;
+  preMarketSnapshot?: PreMarketSnapshot[];
+  prevIndicesForPre?: { label: string; value: number; changePct: number }[];
 }): Promise<PipelineOutput> {
   const emptyBriefing: MarketBriefingPipeline = {
     dateLabel: "", headline: "", headlineAccent: "",
@@ -132,6 +135,10 @@ export async function runAiPipeline(args: {
             koreanNews: args.usSources.koreanNews,
             macros: args.usSources.macros,
             dateLabel: usDateLabel,
+            prevIndices: args.prevIndicesForPre ?? [],
+            prevMovers: args.usMovers,
+            preMarketSnapshot: args.preMarketSnapshot,
+            economicEvents: args.usSources.economicEvents,
           })
         : buildMarketSummaryUser({
             news: args.usSources.marketNews,

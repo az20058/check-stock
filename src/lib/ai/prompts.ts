@@ -154,21 +154,39 @@ ${lines}
 
 export const usPreMarketSystem = `너는 한국어로 미국 주식시장 프리뷰를 제공하는 애널리스트다.
 
-[핵심 원칙]
-- 오늘 밤 미국 장이 열리기 전, 한국 투자자가 주목해야 할 포인트를 정리한다.
-- 주어진 뉴스와 데이터에 근거해서만 답한다. 추측·예측·일반론은 절대 쓰지 않는다.
-- 프리마켓 동향, 예정된 경제 지표 발표, 실적 발표 일정 등 사전 정보를 중심으로 정리한다.
-- "~할 수 있다", "~가 예상된다" 같은 모호한 표현 대신, "~가 예정됐다", "~로 발표됐다" 같은 사실 기반 표현을 쓴다.
-- 개인 투자자가 5초 안에 이해할 수 있게 핵심만 간결하게 정리한다.
-- 한국어 뉴스와 영어 뉴스를 모두 참고하여, 한국 투자자 관점에서 가장 중요한 이슈를 중심으로 정리한다.
-- 전문 용어는 피하고, 숫자는 맥락(왜 이 숫자가 중요한가)과 함께 제시한다.
+[중요: 시점 구분]
+입력 데이터에는 두 가지 시점이 섞여 있다.
+1. [전일 미국장 마감 결과]: 어제 끝난 회고용 참고 데이터다.
+2. [현재 프리마켓 동향] + [오늘 발표 예정 경제 이벤트] + [관련 뉴스 헤드라인]: 오늘 밤 미국장의 출발점이다.
+
+너의 임무는 "오늘 밤 미국장 시작 시점에 한국 투자자가 무엇을 봐야 하는가"를 정리하는 것이다.
+
+[작성 규칙]
+- headline, headlineAccent, summary.body는 반드시 "오늘 밤 시작 시점" 관점으로 작성한다.
+- summary.body는 "어제 ~~ 마감"으로 시작 금지. "오늘 밤 ~~", "프리마켓에서 ~~" 같은 현재/미래 시점으로 시작하라.
+- summary.sub에서만 전일 마감 결과를 1문장 맥락으로 활용 가능하다. 본문(body)을 회고로 채우지 마라.
+- causes는 "오늘 밤 주목할 TOP 3 포인트" (예정 이벤트, 프리마켓 동향, 흐름의 연속성)로 작성한다.
+- 추측·예측은 금지. "~할 수 있다", "~가 예상된다" 대신 "~가 예정됐다", "프리마켓에서 ~%로 출발했다" 같은 사실 표현만 쓴다.
+- 한국 투자자 관점(한국 시간, 코스피·반도체주 영향)을 우선한다.
 - 한국어로만 답한다.`.trim();
+
+export interface PreMarketSnapshot {
+  label: string;
+  ticker: string;
+  prevClose: number;
+  preMarketChangePct: number | null;
+  marketState: string | null;
+}
 
 export function buildUsPreMarketUser(args: {
   news: MarketNewsItem[];
   koreanNews: KoreanNewsItem[];
   macros: MacroItem[];
   dateLabel: string;
+  prevIndices: { label: string; value: number; changePct: number }[];
+  prevMovers: { ticker: string; nameKo: string; changePct: number }[];
+  preMarketSnapshot?: PreMarketSnapshot[];
+  economicEvents: EconomicEvent[];
 }): string {
   const newsLines = args.news
     .slice(0, 12)
@@ -184,23 +202,77 @@ export function buildUsPreMarketUser(args: {
     .map((m) => `- ${m.label}: ${m.value} (${m.delta})`)
     .join("\n");
 
-  return `오늘은 ${args.dateLabel}.
+  const fmtPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 
-[매크로 현황]
+  const prevIndexLines = args.prevIndices
+    .map((x) => `- ${x.label}: ${x.value} (${fmtPct(x.changePct)})`)
+    .join("\n");
+
+  const prevMoverLines = args.prevMovers
+    .map((m) => `- ${m.nameKo} (${m.ticker}): ${fmtPct(m.changePct)}`)
+    .join("\n");
+
+  const preMarketLines =
+    args.preMarketSnapshot && args.preMarketSnapshot.length > 0
+      ? args.preMarketSnapshot
+          .map((p) => {
+            const pctStr =
+              p.preMarketChangePct === null || p.preMarketChangePct === undefined
+                ? "프리마켓 호가 미수집"
+                : `프리마켓 ${fmtPct(p.preMarketChangePct)}`;
+            const stateStr = p.marketState ? ` (marketState=${p.marketState})` : "";
+            return `- ${p.label} (${p.ticker}): ${pctStr}${stateStr}`;
+          })
+          .join("\n")
+      : "(수집 실패 또는 미수집)";
+
+  const eventLines =
+    args.economicEvents.length > 0
+      ? args.economicEvents
+          .slice(0, 8)
+          .map(
+            (e) =>
+              `- ${e.time} UTC · ${e.event} · impact=${e.impact} · 예상=${e.estimate ?? "—"} · 이전=${e.prev ?? "—"}`,
+          )
+          .join("\n")
+      : "(예정 이벤트 없음)";
+
+  return `오늘은 ${args.dateLabel}. 지금은 미국 정규장 시작 전(프리마켓 시간대)이다.
+
+[전일 미국장 마감 결과 — 회고용 참고]
+지수:
+${prevIndexLines || "(수집 실패)"}
+주도주:
+${prevMoverLines || "(수집 실패)"}
+
+[현재 프리마켓 동향 — "지금" 시점]
+${preMarketLines}
+
+[매크로 현황 — 전영업일 EOD]
 ${macroLines || "(수집 실패)"}
 
-[영문 주요 뉴스 헤드라인]
-${newsLines || "(뉴스 없음)"}
+[오늘 발표 예정 경제 이벤트 — UTC 시각]
+${eventLines}
 
-[한국 금융 뉴스 헤드라인]
-${koreanNewsLines || "(한국 뉴스 없음)"}
+[관련 뉴스 헤드라인]
+영문:
+${newsLines || "(없음)"}
+한글:
+${koreanNewsLines || "(없음)"}
 
-위 정보를 바탕으로 오늘 밤 미국 장에서 주목할 포인트를 정리하라.
-중요: 확인된 사실과 예정된 일정만 언급하라. 근거 없는 방향성 예측은 쓰지 마라.
-- headline: 브리핑 제목 꼬리말 (5~10자)
-- headlineAccent: 오늘의 핵심 주제 (예: '오늘 밤 주목할')
-- summary.body: 오늘 밤 미국 장에서 가장 주목할 포인트 한 문장
-- summary.sub: 보조 맥락 1~2문장 (프리마켓 동향, 주요 일정 등)
-- tags: 3~4개의 해시태그 (#프리마켓, #실적발표 등)
-- causes: 오늘 밤 주목할 TOP 3 포인트. 각각 rank(1~3), title(15~25자), desc(30~60자), tags(최대 3개) 포함`;
+위 정보를 바탕으로 "오늘 밤 미국장에서 한국 투자자가 주목할 포인트"를 작성하라.
+
+중요:
+- headline·summary.body는 반드시 "오늘 밤" 관점으로 시작하라. "어제 ~~ 마감"으로 시작 금지.
+- 전일 마감 결과는 summary.sub에서 1문장 맥락으로만 활용하라. 본문(body)을 회고로 채우지 마라.
+- 프리마켓 호가가 있으면 본문에 활용하라.
+- causes는 오늘 밤 주목할 TOP 3 포인트(예정 이벤트, 프리마켓 동향, 흐름의 연속성)로 작성하라.
+
+출력 필드:
+- headline: 5~10자 (예: "프리마켓 출발 강세")
+- headlineAccent: 오늘의 핵심 주제
+- summary.body: 오늘 밤 미국장에서 가장 주목할 포인트 한 문장
+- summary.sub: 보조 맥락 1~2문장 (전일 마감 → 오늘 흐름 등)
+- tags: 3~4개 해시태그
+- causes: 오늘 밤 주목할 TOP 3 포인트. 각 rank(1~3), title(15~25자), desc(30~60자), tags(최대 3개)`;
 }

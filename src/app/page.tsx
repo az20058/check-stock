@@ -289,7 +289,7 @@ export default function Home() {
               className="text-lg font-bold"
               style={{ color: "var(--text-0)" }}
             >
-              내 {marketLabel} 관심종목
+              {marketLabel} 주요 종목
             </h2>
             <span
               className="text-xs"

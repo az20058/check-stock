@@ -51,3 +51,50 @@ export const KR_INDEX_SYMBOLS = [
   { label: "KOSDAQ", symbol: "^KQ11" },
   { label: "USD/KRW", symbol: "KRW=X" },
 ];
+
+export interface YahooExtendedQuote extends YahooQuote {
+  preMarketPrice: number | null;
+  preMarketChangePercent: number | null;
+  marketState: string | null;
+}
+
+export async function fetchYahooExtendedQuotes(
+  symbols: string[],
+): Promise<YahooExtendedQuote[]> {
+  if (symbols.length === 0) return [];
+
+  const results = await Promise.allSettled(symbols.map((s) => yf.quote(s)));
+
+  const quotes: YahooExtendedQuote[] = [];
+  results.forEach((r, i) => {
+    if (r.status === "fulfilled" && r.value) {
+      const v = r.value as {
+        symbol?: string;
+        regularMarketPrice?: number;
+        regularMarketChangePercent?: number;
+        preMarketPrice?: number;
+        preMarketChangePercent?: number;
+        marketState?: string;
+      };
+      quotes.push({
+        symbol: v.symbol ?? symbols[i],
+        c: v.regularMarketPrice ?? 0,
+        dp: v.regularMarketChangePercent ?? 0,
+        preMarketPrice:
+          typeof v.preMarketPrice === "number" ? v.preMarketPrice : null,
+        preMarketChangePercent:
+          typeof v.preMarketChangePercent === "number"
+            ? v.preMarketChangePercent
+            : null,
+        marketState: v.marketState ?? null,
+      });
+    } else if (r.status === "rejected") {
+      console.error(
+        `[yahoo] extended quote failed for ${symbols[i]}:`,
+        r.reason,
+      );
+    }
+  });
+
+  return quotes;
+}

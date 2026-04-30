@@ -1,5 +1,5 @@
-# Firebase App Hosting 런타임 설정
-# 문서: https://firebase.google.com/docs/app-hosting/configure
+# Firebase App Hosting 런타임 설정 (Cloud Run)
+# https://firebase.google.com/docs/app-hosting/configure
 
 runConfig:
   cpu: 1
@@ -8,6 +8,8 @@ runConfig:
   maxInstances: 3
   concurrency: 80
 
+# Secret Manager 시크릿을 런타임 환경변수로 주입.
+# 시크릿 등록: gcloud secrets create <NAME> --data-file=- --replication-policy=automatic
 env:
   - variable: FINNHUB_API_KEY
     secret: FINNHUB_API_KEY

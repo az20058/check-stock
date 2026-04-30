@@ -6,10 +6,16 @@ import { fetchEconomicCalendar } from "@/lib/collectors/economic-calendar";
 import { fetchKoreanNews, fetchKoreanMarketNews } from "@/lib/collectors/korean-news";
 import { fetchQuotes } from "@/lib/clients/finnhub";
 import type { FinnhubQuote } from "@/lib/clients/finnhub";
-import { fetchYahooQuotes, toYahooSymbol, KR_INDEX_SYMBOLS } from "@/lib/clients/yahoo";
+import {
+  fetchYahooQuotes,
+  fetchYahooExtendedQuotes,
+  toYahooSymbol,
+  KR_INDEX_SYMBOLS,
+} from "@/lib/clients/yahoo";
 import type { YahooQuote } from "@/lib/clients/yahoo";
 import { getStockMeta, inferMarket } from "@/lib/data/stock-meta";
 import { runAiPipeline } from "@/lib/ai/pipeline";
+import type { PreMarketSnapshot } from "@/lib/ai/prompts";
 import { startRun, finishRun, failRun } from "./storage";
 import type { RawSources, KrRawSources } from "./types";
 import type { BriefingSession, MarketBriefing } from "@/types/stock";
@@ -43,23 +49,43 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       marketNews: [], koreanNews: [], companyNews: {}, macros: [], economicEvents: [],
     };
     let usMovers: { ticker: string; nameKo: string; changePct: number }[] = [];
+    let preMarketSnapshot: PreMarketSnapshot[] = [];
 
     if (isUS) {
+      const yahooPreSymbols = session === "us_pre"
+        ? [...US_INDEX_SYMBOLS.map((x) => x.symbol), ...US_MOVER_TICKERS]
+        : [];
+
       const usCollectionRes = await Promise.allSettled([
         fetchMarketNews(15),
         fetchKoreanNews(20),
         fetchMacros(),
         fetchEconomicCalendar(1),
         fetchQuotes([...US_INDEX_SYMBOLS.map((x) => x.symbol), ...US_MOVER_TICKERS]),
+        fetchYahooExtendedQuotes(yahooPreSymbols),
         ...US_MOVER_TICKERS.map((t) => fetchCompanyNews(t, 4)),
       ]);
 
-      const [marketNewsRes, koreanNewsRes, macrosRes, calendarRes, usQuotesRes, ...usCompanyNewsRes] =
-        usCollectionRes;
+      const [
+        marketNewsRes,
+        koreanNewsRes,
+        macrosRes,
+        calendarRes,
+        usQuotesRes,
+        yahooPreRes,
+        ...usCompanyNewsRes
+      ] = usCollectionRes;
 
       // 실패한 collector 로깅
-      const usLabels = ["marketNews", "koreanNews", "macros", "economicCalendar", "usQuotes",
-        ...US_MOVER_TICKERS.map((t) => `companyNews:${t}`)];
+      const usLabels = [
+        "marketNews",
+        "koreanNews",
+        "macros",
+        "economicCalendar",
+        "usQuotes",
+        "yahooPreMarket",
+        ...US_MOVER_TICKERS.map((t) => `companyNews:${t}`),
+      ];
       usCollectionRes.forEach((r, i) => {
         if (r.status === "rejected") {
           console.error(`[briefing] US collector "${usLabels[i]}" failed:`, r.reason);
@@ -75,6 +101,19 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       US_MOVER_TICKERS.forEach((t, i) => {
         const r = usCompanyNewsRes[i];
         usCompanyNews[t] = r?.status === "fulfilled" ? r.value : [];
+      });
+
+      const yahooPreQuotes = yahooPreRes.status === "fulfilled" ? yahooPreRes.value : [];
+      preMarketSnapshot = yahooPreQuotes.map((q) => {
+        const idxLabel = US_INDEX_SYMBOLS.find((x) => x.symbol === q.symbol)?.label;
+        const meta = idxLabel ? null : getStockMeta(q.symbol);
+        return {
+          label: idxLabel ?? meta?.nameKo ?? q.symbol,
+          ticker: q.symbol,
+          prevClose: q.c,
+          preMarketChangePct: q.preMarketChangePercent,
+          marketState: q.marketState,
+        };
       });
 
       usSources = {
@@ -139,7 +178,23 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       });
     }
 
-    const result = await runAiPipeline({ usSources, krSources, usMovers, krMovers, session });
+    const prevIndicesForPre =
+      session === "us_pre"
+        ? US_INDEX_SYMBOLS.map(({ label, symbol }) => {
+            const q = usQuotes.find((x) => x.symbol === symbol);
+            return { label, value: q?.c ?? 0, changePct: q?.dp ?? 0 };
+          })
+        : undefined;
+
+    const result = await runAiPipeline({
+      usSources,
+      krSources,
+      usMovers,
+      krMovers,
+      session,
+      preMarketSnapshot: session === "us_pre" ? preMarketSnapshot : undefined,
+      prevIndicesForPre,
+    });
 
     // 시세 스냅샷으로 enriched MarketBriefing 구성 (API에서 실시간 fetch 불필요)
     const usQuoteMap = new Map(usQuotes.map((q) => [q.symbol, q]));

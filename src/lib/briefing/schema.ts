@@ -20,7 +20,7 @@ export const marketSummarySchema = z.object({
     impact: z.string().default(""),
     evidence: z.number().int().min(0).default(0),
     sources: z.array(z.object({
-      headline: z.string().min(1),
+      headline: z.string().default(""),
       source: z.string().default(""),
       url: z.string().default(""),
     })).max(3).default([]),
@@ -97,7 +97,7 @@ export const marketSummaryJsonSchema = {
           evidence: { type: "number", description: "이 원인을 뒷받침하는 입력 뉴스·매크로 건수 (1~6 정수). 추정치." },
           sources: {
             type: "array",
-            description: "이 원인을 뒷받침하는 입력 뉴스에서 1~3개 발췌. 입력 목록에 없는 출처는 절대 만들지 말 것.",
+            description: "이 원인을 뒷받침하는 입력 뉴스에서 0~3개 발췌. 입력 목록에 없는 출처는 절대 만들지 말 것. 매칭되는 입력 뉴스가 없으면 빈 배열.",
             items: {
               type: "object",
               properties: {
@@ -106,11 +106,10 @@ export const marketSummaryJsonSchema = {
               },
               required: ["headline", "source"],
             },
-            minItems: 1,
             maxItems: 3,
           },
         },
-        required: ["rank", "title", "desc", "tags", "impact", "evidence", "sources"],
+        required: ["rank", "title", "desc", "tags", "impact", "evidence"],
       },
       minItems: 3,
       maxItems: 3,

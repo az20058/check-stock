@@ -202,7 +202,7 @@ export async function runAiPipeline(args: {
         ? "오늘 밤 미국 시장 프리뷰를 제출한다"
         : "오늘의 미국 시장 요약 결과를 제출한다",
       inputSchema: marketSummaryJsonSchema,
-      maxTokens: 2000,
+      maxTokens: 3000,
     });
     addUsage(usSummaryRes.usage);
     let usSummary: MarketSummary;
@@ -266,7 +266,7 @@ export async function runAiPipeline(args: {
     toolName: "submit_market_summary",
     toolDescription: "오늘의 한국 시장 요약 결과를 제출한다",
     inputSchema: marketSummaryJsonSchema,
-    maxTokens: 2000,
+    maxTokens: 3000,
   };
 
   let krSummary: MarketSummary | null = null;

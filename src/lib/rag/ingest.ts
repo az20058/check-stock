@@ -1,6 +1,7 @@
 import "server-only";
 import { embed } from "@/lib/clients/embedding";
 import { getServerClient } from "@/lib/clients/supabase";
+import { toKstIso } from "@/lib/utils/datetime";
 
 export interface NewsRow {
   source: string;
@@ -43,7 +44,7 @@ export async function ingestNews(items: NewsRow[]): Promise<{ inserted: number; 
       headline: n.headline,
       summary: n.summary,
       url: n.url,
-      published_at: n.publishedAt.toISOString(),
+      published_at: toKstIso(n.publishedAt),
       embedding: vectors[i],
     }));
     const { error, count } = await getServerClient()

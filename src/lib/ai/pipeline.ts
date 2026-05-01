@@ -47,6 +47,7 @@ import type { RawSources, KrRawSources, TokenUsage } from "@/lib/briefing/types"
 import type { MacroItem } from "@/types/stock";
 import { retrieve } from "@/lib/rag/retrieve";
 import { getStockMeta } from "@/lib/data/stock-meta";
+import { kstToInstant } from "@/lib/utils/datetime";
 import type { CompanyNewsItem } from "@/lib/collectors/company-news";
 
 export interface MoverMeta {
@@ -73,15 +74,18 @@ export interface PipelineOutput {
 }
 
 function toDateLabel(iso: string, session: BriefingSession): string {
-  const d = new Date(iso);
-  const month = d.getUTCMonth() + 1;
-  const day = d.getUTCDate();
-  const wd = ["일", "월", "화", "수", "목", "금", "토"][d.getUTCDay()];
+  // iso는 KST wall-clock 문자열("YYYY-MM-DDTHH:mm:ss[.sss]"), offset 없음.
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "";
+  const [, y, mo, da] = m;
+  // 요일은 KST 날짜 기준. UTC midnight Date를 만들어 getUTCDay로 계산하면 안전.
+  const wdIdx = new Date(`${y}-${mo}-${da}T00:00:00Z`).getUTCDay();
+  const wd = ["일", "월", "화", "수", "목", "금", "토"][wdIdx];
   const suffix =
     session === "kr_close" ? "장마감 15:30 KST" :
     session === "us_close" ? "장마감 04:00 ET" :
     "장 시작 전 · 프리마켓";
-  return `${month}월 ${day}일 ${wd}요일 · ${suffix}`;
+  return `${Number(mo)}월 ${Number(da)}일 ${wd}요일 · ${suffix}`;
 }
 
 /**
@@ -112,7 +116,7 @@ async function augmentWithRag(
         ticker: m.ticker,
         headline: d.headline,
         summary: d.summary ?? "",
-        datetime: Math.floor(new Date(d.publishedAt).getTime() / 1000),
+        datetime: Math.floor(kstToInstant(d.publishedAt).getTime() / 1000),
         source: d.source,
       });
     }

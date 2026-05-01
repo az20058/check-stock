@@ -1,5 +1,6 @@
 import "server-only";
 import { getServerClient } from "@/lib/clients/supabase";
+import { nowKstIso } from "@/lib/utils/datetime";
 import type { RawSources, KrRawSources, TokenUsage } from "./types";
 import type { MarketBriefing } from "@/types/stock";
 
@@ -55,7 +56,7 @@ export async function finishRun(
   const { error } = await supa
     .from(TABLE)
     .update({
-      finished_at: new Date().toISOString(),
+      finished_at: nowKstIso(),
       status: payload.status,
       raw_sources: payload.sources,
       briefing_data: payload.briefingData,
@@ -71,7 +72,7 @@ export async function failRun(runId: string, err: unknown): Promise<void> {
   await supa
     .from(TABLE)
     .update({
-      finished_at: new Date().toISOString(),
+      finished_at: nowKstIso(),
       status: "failed",
       error: message.slice(0, 500),
     })

@@ -13,6 +13,7 @@ import { runAiPipeline } from "@/lib/ai/pipeline";
 import { ingestNews } from "@/lib/rag/ingest";
 import type { NewsRow } from "@/lib/rag/ingest";
 import { startRun, finishRun, failRun } from "./storage";
+import { nowKstIso } from "@/lib/utils/datetime";
 import type { RawSources, KrRawSources } from "./types";
 import type { BriefingSession, MarketBriefing } from "@/types/stock";
 
@@ -41,7 +42,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
 
     // US 데이터 수집
     let usSources: RawSources = {
-      collectedAt: new Date().toISOString(),
+      collectedAt: nowKstIso(),
       marketNews: [], koreanNews: [], companyNews: {}, macros: [], economicEvents: [],
     };
     let usMovers: { ticker: string; nameKo: string; changePct: number }[] = [];
@@ -80,7 +81,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       });
 
       usSources = {
-        collectedAt: new Date().toISOString(),
+        collectedAt: nowKstIso(),
         marketNews,
         koreanNews,
         companyNews: usCompanyNews,
@@ -97,7 +98,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
 
     // KR 데이터 수집
     let krSources: KrRawSources = {
-      collectedAt: new Date().toISOString(),
+      collectedAt: nowKstIso(),
       koreanMarketNews: [], companyNews: {}, macros: [],
     };
     let krMovers: { ticker: string; nameKo: string; changePct: number }[] = [];
@@ -127,7 +128,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       krQuotes = krQuotesRes.status === "fulfilled" ? krQuotesRes.value : [];
 
       krSources = {
-        collectedAt: new Date().toISOString(),
+        collectedAt: nowKstIso(),
         koreanMarketNews: krMarketNews,
         companyNews: {},  // KR 종목별 뉴스는 추후 추가
         macros: krMacros,

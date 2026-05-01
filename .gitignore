@@ -46,3 +46,11 @@ next-env.d.ts
 # claude code (local settings stay local; team config is shared)
 .claude/settings.local.json
 .env*.local
+
+# OpenNext
+.open-next
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example

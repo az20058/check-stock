@@ -2,6 +2,7 @@ export interface KoreanNewsItem {
   title: string;
   source: string;
   pubDate: string;
+  url: string;
 }
 
 // ── Google News RSS ──
@@ -66,6 +67,7 @@ function parseRssItems(xml: string, limit: number, defaultSource?: string): Kore
       ?? block.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1]?.trim()
       ?? "";
     const pubDate = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1]?.trim() ?? "";
+    const url = block.match(/<link>([\s\S]*?)<\/link>/)?.[1]?.trim() ?? "";
 
     title = title
       .replace(/&amp;/g, "&")
@@ -75,7 +77,7 @@ function parseRssItems(xml: string, limit: number, defaultSource?: string): Kore
       .replace(/&quot;/g, '"');
 
     if (title) {
-      items.push({ title, source, pubDate });
+      items.push({ title, source, pubDate, url });
     }
   }
 

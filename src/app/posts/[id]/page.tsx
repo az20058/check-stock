@@ -514,6 +514,49 @@ export default function PostDetailPage() {
                           ))}
                         </div>
                       )}
+                      {c.sources && c.sources.length > 0 && (
+                        <div
+                          className="flex flex-wrap gap-1.5"
+                          style={{ marginTop: c.tags.length > 0 ? 8 : 10 }}
+                        >
+                          {c.sources.map((s, idx) =>
+                            s.url ? (
+                              <a
+                                key={`${s.headline}-${idx}`}
+                                href={s.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={s.headline}
+                                className="inline-flex items-center gap-1 text-[10px] rounded border hover:opacity-80"
+                                style={{
+                                  height: 20,
+                                  padding: "0 8px",
+                                  background: "var(--bg-3)",
+                                  color: "var(--accent)",
+                                  borderColor: "var(--accent-ring)",
+                                }}
+                              >
+                                📰 {s.source || "출처"}
+                              </a>
+                            ) : (
+                              <span
+                                key={`${s.headline}-${idx}`}
+                                title={s.headline}
+                                className="inline-flex items-center gap-1 text-[10px] rounded border"
+                                style={{
+                                  height: 20,
+                                  padding: "0 8px",
+                                  background: "var(--bg-3)",
+                                  color: "var(--text-2)",
+                                  borderColor: "var(--line)",
+                                }}
+                              >
+                                📰 {s.source || "출처"}
+                              </span>
+                            ),
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

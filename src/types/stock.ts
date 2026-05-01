@@ -39,6 +39,15 @@ export interface EventItem {
   important: boolean;
 }
 
+export interface CauseSource {
+  /** 입력 뉴스의 헤드라인 그대로 */
+  headline: string;
+  /** 매체명 (Reuters, CNBC, 매일경제 등) */
+  source: string;
+  /** 원문 URL — 백엔드에서 매칭. 없으면 빈 문자열. */
+  url: string;
+}
+
 export interface Cause {
   rank: number;
   title: string;
@@ -48,6 +57,8 @@ export interface Cause {
   impact?: string;
   /** 근거가 된 출처 건수. 구레코드 호환을 위해 optional */
   evidence?: number;
+  /** 이 원인을 뒷받침하는 출처 (1~3개). 구레코드 호환을 위해 optional */
+  sources?: CauseSource[];
 }
 
 export interface MarketBriefing {

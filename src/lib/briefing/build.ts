@@ -15,7 +15,28 @@ import type { NewsRow } from "@/lib/rag/ingest";
 import { startRun, finishRun, failRun } from "./storage";
 import { nowKstIso } from "@/lib/utils/datetime";
 import type { RawSources, KrRawSources } from "./types";
-import type { BriefingSession, MarketBriefing } from "@/types/stock";
+import type { BriefingSession, MarketBriefing, Cause } from "@/types/stock";
+
+/**
+ * AI가 반환한 causes.sources를 입력 뉴스 헤드라인과 매칭해 URL 채워넣기.
+ * AI는 headline·source만 복사하므로 URL은 원본 뉴스 리스트에서 lookup.
+ */
+function enrichCauseSources(
+  causes: Cause[],
+  newsIndex: Map<string, { source: string; url: string }>,
+): Cause[] {
+  return causes.map((c) => ({
+    ...c,
+    sources: (c.sources ?? []).map((s) => {
+      const hit = newsIndex.get(s.headline);
+      return {
+        headline: s.headline,
+        source: hit?.source || s.source || "",
+        url: hit?.url || s.url || "",
+      };
+    }),
+  }));
+}
 
 export const US_MOVER_TICKERS = ["NVDA", "TSLA", "AAPL", "MSFT"] as const;
 export const KR_MOVER_TICKERS = ["005930", "000660", "035420", "005380"] as const;
@@ -173,6 +194,17 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
 
     const result = await runAiPipeline({ usSources, krSources, usMovers, krMovers, session });
 
+    // causes.sources URL 매핑용 인덱스 (headline → {source, url})
+    const usNewsIndex = new Map<string, { source: string; url: string }>();
+    for (const n of usSources.marketNews) usNewsIndex.set(n.headline, { source: n.source, url: n.url });
+    for (const items of Object.values(usSources.companyNews)) {
+      for (const n of items) usNewsIndex.set(n.headline, { source: n.source, url: n.url });
+    }
+    for (const n of usSources.koreanNews) usNewsIndex.set(n.title, { source: n.source, url: n.url });
+
+    const krNewsIndex = new Map<string, { source: string; url: string }>();
+    for (const n of krSources.koreanMarketNews) krNewsIndex.set(n.title, { source: n.source, url: n.url });
+
     // 시세 스냅샷으로 enriched MarketBriefing 구성 (API에서 실시간 fetch 불필요)
     const usQuoteMap = new Map(usQuotes.map((q) => [q.symbol, q]));
     const krQuoteMap = new Map(krQuotes.map((q) => [q.symbol, q]));
@@ -203,7 +235,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       }),
       macros: result.us.macros,
       events: result.us.events,
-      causes: result.us.causes,
+      causes: enrichCauseSources(result.us.causes, usNewsIndex),
     };
 
     const enrichedKr: MarketBriefing = {
@@ -233,7 +265,7 @@ export async function runBriefing(triggeredBy: "cron" | "manual", session: Brief
       }),
       macros: result.kr.macros,
       events: result.kr.events,
-      causes: result.kr.causes,
+      causes: enrichCauseSources(result.kr.causes, krNewsIndex),
     };
 
     const status: "success" | "partial" =

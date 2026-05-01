@@ -19,6 +19,11 @@ export const marketSummarySchema = z.object({
     tags: z.array(z.string()).max(3),
     impact: z.string().default(""),
     evidence: z.number().int().min(0).default(0),
+    sources: z.array(z.object({
+      headline: z.string().min(1),
+      source: z.string().default(""),
+      url: z.string().default(""),
+    })).max(3).default([]),
   })).max(3).default([]),
 });
 export type MarketSummary = z.infer<typeof marketSummarySchema>;
@@ -90,8 +95,22 @@ export const marketSummaryJsonSchema = {
           },
           impact: { type: "string", description: "임팩트 한 줄 — 섹터·지수·종목별 등락폭을 짧게 (5~15자). 예: '성장주 −1.8%', '반도체 −2.3%', '거래량 1.9×'" },
           evidence: { type: "number", description: "이 원인을 뒷받침하는 입력 뉴스·매크로 건수 (1~6 정수). 추정치." },
+          sources: {
+            type: "array",
+            description: "이 원인을 뒷받침하는 입력 뉴스에서 1~3개 발췌. 입력 목록에 없는 출처는 절대 만들지 말 것.",
+            items: {
+              type: "object",
+              properties: {
+                headline: { type: "string", description: "입력 뉴스의 헤드라인을 한 글자도 바꾸지 말고 그대로 복사" },
+                source: { type: "string", description: "입력 뉴스 앞의 [매체명]에 적힌 값을 그대로 복사" },
+              },
+              required: ["headline", "source"],
+            },
+            minItems: 1,
+            maxItems: 3,
+          },
         },
-        required: ["rank", "title", "desc", "tags", "impact", "evidence"],
+        required: ["rank", "title", "desc", "tags", "impact", "evidence", "sources"],
       },
       minItems: 3,
       maxItems: 3,

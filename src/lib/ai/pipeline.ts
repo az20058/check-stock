@@ -118,6 +118,7 @@ async function augmentWithRag(
         summary: d.summary ?? "",
         datetime: Math.floor(kstToInstant(d.publishedAt).getTime() / 1000),
         source: d.source,
+        url: d.url ?? "",
       });
     }
     return merged.slice(0, 8);

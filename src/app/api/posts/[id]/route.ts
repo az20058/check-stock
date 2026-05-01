@@ -114,6 +114,16 @@ function normalizeBriefing(
           title: str(c?.title),
           desc: str(c?.desc),
           tags: Array.isArray(c?.tags) ? c.tags.filter((t: unknown) => typeof t === "string") : [],
+          impact: typeof c?.impact === "string" ? c.impact : undefined,
+          evidence: typeof c?.evidence === "number" ? c.evidence : undefined,
+          sources: Array.isArray(c?.sources)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ? c.sources.map((s: any) => ({
+                headline: str(s?.headline),
+                source: str(s?.source),
+                url: str(s?.url),
+              }))
+            : [],
         }))
       : [],
   };

@@ -4,6 +4,7 @@ export interface CompanyNewsItem {
   summary: string;
   datetime: number;
   source: string;
+  url: string;
 }
 
 function toYmd(d: Date): string {
@@ -34,6 +35,7 @@ export async function fetchCompanyNews(
       summary: string;
       datetime: number;
       source: string;
+      url?: string;
     }>;
     return data
       .sort((a, b) => b.datetime - a.datetime)
@@ -44,6 +46,7 @@ export async function fetchCompanyNews(
         summary: n.summary,
         datetime: n.datetime,
         source: n.source,
+        url: n.url ?? "",
       }));
   } catch {
     return [];

@@ -276,6 +276,42 @@ export default function Home() {
                         ))}
                       </div>
                     )}
+                    {c.sources && c.sources.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {c.sources.map((s, idx) =>
+                          s.url ? (
+                            <a
+                              key={`${s.headline}-${idx}`}
+                              href={s.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={s.headline}
+                              className="text-[10px] rounded-full border h-5 flex items-center px-2 hover:opacity-80"
+                              style={{
+                                background: "var(--bg-3)",
+                                color: "var(--accent)",
+                                borderColor: "var(--accent)",
+                              }}
+                            >
+                              📰 {s.source || "출처"}
+                            </a>
+                          ) : (
+                            <span
+                              key={`${s.headline}-${idx}`}
+                              title={s.headline}
+                              className="text-[10px] rounded-full border h-5 flex items-center px-2"
+                              style={{
+                                background: "var(--bg-3)",
+                                color: "var(--text-2)",
+                                borderColor: "var(--line)",
+                              }}
+                            >
+                              📰 {s.source || "출처"}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
